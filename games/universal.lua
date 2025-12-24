@@ -7100,18 +7100,52 @@ run(function()
 end)
 
 run(function()
-	local PrintHi
+	local DarkDex
 
-	PrintHi = vape.Legit:CreateModule({
-		Name = "Print Hi",
+	local function destroyIfExists(obj)
+		if obj and obj.Destroy then
+			pcall(function()
+				obj:Destroy()
+			end)
+		end
+	end
+
+	local function cleanupDarkDex()
+		local CoreGui = game:GetService("CoreGui")
+
+		-- CoreGui.Window (both instances)
+		for _, v in ipairs(CoreGui:GetChildren()) do
+			if v.Name == "Window" then
+				destroyIfExists(v)
+			end
+		end
+
+		-- CoreGui.ScreenGui
+		destroyIfExists(CoreGui:FindFirstChild("ScreenGui"))
+
+		-- CoreGui.MainMenu
+		destroyIfExists(CoreGui:FindFirstChild("MainMenu"))
+	end
+
+	DarkDex = vape.Legit:CreateModule({
+		Name = "Dark Dex",
+		Tooltip = "Opens Dark Dex v4",
 		Function = function(callback)
 			if callback then
-				print("hi (enabled)")
+				-- Load Dark Dex
+				pcall(function()
+					loadstring(
+						game:HttpGet(
+							"https://raw.githubusercontent.com/sinsly/exploit-tools/main/v4-darkdex.lua",
+							true
+						)
+					)()
+				end)
 			else
-				print("hi (disabled)")
+				-- Cleanup on toggle off
+				cleanupDarkDex()
 			end
-		end,
-		Tooltip = "Prints hi when toggled on and off"
+		end
 	})
 end)
 
