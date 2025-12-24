@@ -6766,338 +6766,6 @@ run(function()
 		Tooltip = 'Automatic murder mystery teaming based on equipped roblox tools.'
 	})
 end)
-	
-run(function()
-	local Atmosphere
-	local Toggles = {}
-	local newobjects, oldobjects = {}, {}
-	local apidump = {
-		Sky = {
-			SkyboxUp = 'Text',
-			SkyboxDn = 'Text',
-			SkyboxLf = 'Text',
-			SkyboxRt = 'Text',
-			SkyboxFt = 'Text',
-			SkyboxBk = 'Text',
-			SunTextureId = 'Text',
-			SunAngularSize = 'Number',
-			MoonTextureId = 'Text',
-			MoonAngularSize = 'Number',
-			StarCount = 'Number'
-		},
-		Atmosphere = {
-			Color = 'Color',
-			Decay = 'Color',
-			Density = 'Number',
-			Offset = 'Number',
-			Glare = 'Number',
-			Haze = 'Number'
-		},
-		BloomEffect = {
-			Intensity = 'Number',
-			Size = 'Number',
-			Threshold = 'Number'
-		},
-		DepthOfFieldEffect = {
-			FarIntensity = 'Number',
-			FocusDistance = 'Number',
-			InFocusRadius = 'Number',
-			NearIntensity = 'Number'
-		},
-		SunRaysEffect = {
-			Intensity = 'Number',
-			Spread = 'Number'
-		},
-		ColorCorrectionEffect = {
-			TintColor = 'Color',
-			Saturation = 'Number',
-			Contrast = 'Number',
-			Brightness = 'Number'
-		}
-	}
-	
-	local function removeObject(v)
-		if not table.find(newobjects, v) then
-			local toggle = Toggles[v.ClassName]
-			if toggle and toggle.Toggle.Enabled then
-				if v.Parent then
-					table.insert(oldobjects, v)
-					v.Parent = game
-				end
-			end
-		end
-	end
-	
-	Atmosphere = vape.Legit:CreateModule({
-		Name = 'Atmosphere',
-		Function = function(callback)
-			if callback then
-				for _, v in lightingService:GetChildren() do
-					removeObject(v)
-				end
-				Atmosphere:Clean(lightingService.ChildAdded:Connect(function(v)
-					task.defer(removeObject, v)
-				end))
-	
-				for i, v in Toggles do
-					if v.Toggle.Enabled then
-						local obj = Instance.new(i)
-						for i2, v2 in v.Objects do
-							if v2.Type == 'ColorSlider' then
-								obj[i2] = Color3.fromHSV(v2.Hue, v2.Sat, v2.Value)
-							else
-								obj[i2] = apidump[i][i2] ~= 'Number' and v2.Value or tonumber(v2.Value) or 0
-							end
-						end
-						obj.Parent = lightingService
-						table.insert(newobjects, obj)
-					end
-				end
-			else
-				for _, v in newobjects do
-					v:Destroy()
-				end
-				for _, v in oldobjects do
-					v.Parent = lightingService
-				end
-				table.clear(newobjects)
-				table.clear(oldobjects)
-			end
-		end,
-		Tooltip = 'Custom lighting objects'
-	})
-	for i, v in apidump do
-		Toggles[i] = {Objects = {}}
-		Toggles[i].Toggle = Atmosphere:CreateToggle({
-			Name = i,
-			Function = function(callback)
-				if Atmosphere.Enabled then
-					Atmosphere:Toggle()
-					Atmosphere:Toggle()
-				end
-				for _, toggle in Toggles[i].Objects do
-					toggle.Object.Visible = callback
-				end
-			end
-		})
-	
-		for i2, v2 in v do
-			if v2 == 'Text' or v2 == 'Number' then
-				Toggles[i].Objects[i2] = Atmosphere:CreateTextBox({
-					Name = i2,
-					Function = function(enter)
-						if Atmosphere.Enabled and enter then
-							Atmosphere:Toggle()
-							Atmosphere:Toggle()
-						end
-					end,
-					Darker = true,
-					Default = v2 == 'Number' and '0' or nil,
-					Visible = false
-				})
-			elseif v2 == 'Color' then
-				Toggles[i].Objects[i2] = Atmosphere:CreateColorSlider({
-					Name = i2,
-					Function = function()
-						if Atmosphere.Enabled then
-							Atmosphere:Toggle()
-							Atmosphere:Toggle()
-						end
-					end,
-					Darker = true,
-					Visible = false
-				})
-			end
-		end
-	end
-end)
-	
-run(function()
-	local Breadcrumbs
-	local Texture
-	local Lifetime
-	local Thickness
-	local FadeIn
-	local FadeOut
-	local trail, point, point2
-	
-	Breadcrumbs = vape.Legit:CreateModule({
-		Name = 'Breadcrumbs',
-		Function = function(callback)
-			if callback then
-				point = Instance.new('Attachment')
-				point.Position = Vector3.new(0, Thickness.Value - 2.7, 0)
-				point2 = Instance.new('Attachment')
-				point2.Position = Vector3.new(0, -Thickness.Value - 2.7, 0)
-				trail = Instance.new('Trail')
-				trail.Texture = Texture.Value == '' and 'http://www.roblox.com/asset/?id=14166981368' or Texture.Value
-				trail.TextureMode = Enum.TextureMode.Static
-				trail.Color = ColorSequence.new(Color3.fromHSV(FadeIn.Hue, FadeIn.Sat, FadeIn.Value), Color3.fromHSV(FadeOut.Hue, FadeOut.Sat, FadeOut.Value))
-				trail.Lifetime = Lifetime.Value
-				trail.Attachment0 = point
-				trail.Attachment1 = point2
-				trail.FaceCamera = true
-	
-				Breadcrumbs:Clean(trail)
-				Breadcrumbs:Clean(point)
-				Breadcrumbs:Clean(point2)
-				Breadcrumbs:Clean(entitylib.Events.LocalAdded:Connect(function(ent)
-					point.Parent = ent.HumanoidRootPart
-					point2.Parent = ent.HumanoidRootPart
-					trail.Parent = gameCamera
-				end))
-				if entitylib.isAlive then
-					point.Parent = entitylib.character.RootPart
-					point2.Parent = entitylib.character.RootPart
-					trail.Parent = gameCamera
-				end
-			else
-				trail = nil
-				point = nil
-				point2 = nil
-			end
-		end,
-		Tooltip = 'Shows a trail behind your character'
-	})
-	Texture = Breadcrumbs:CreateTextBox({
-		Name = 'Texture',
-		Placeholder = 'Texture Id',
-		Function = function(enter)
-			if enter and trail then
-				trail.Texture = Texture.Value == '' and 'http://www.roblox.com/asset/?id=14166981368' or Texture.Value
-			end
-		end
-	})
-	FadeIn = Breadcrumbs:CreateColorSlider({
-		Name = 'Fade In',
-		Function = function(hue, sat, val)
-			if trail then
-				trail.Color = ColorSequence.new(Color3.fromHSV(hue, sat, val), Color3.fromHSV(FadeOut.Hue, FadeOut.Sat, FadeOut.Value))
-			end
-		end
-	})
-	FadeOut = Breadcrumbs:CreateColorSlider({
-		Name = 'Fade Out',
-		Function = function(hue, sat, val)
-			if trail then
-				trail.Color = ColorSequence.new(Color3.fromHSV(FadeIn.Hue, FadeIn.Sat, FadeIn.Value), Color3.fromHSV(hue, sat, val))
-			end
-		end
-	})
-	Lifetime = Breadcrumbs:CreateSlider({
-		Name = 'Lifetime',
-		Min = 1,
-		Max = 5,
-		Default = 3,
-		Decimal = 10,
-		Function = function(val)
-			if trail then
-				trail.Lifetime = val
-			end
-		end,
-		Suffix = function(val)
-			return val == 1 and 'second' or 'seconds'
-		end
-	})
-	Thickness = Breadcrumbs:CreateSlider({
-		Name = 'Thickness',
-		Min = 0,
-		Max = 2,
-		Default = 0.1,
-		Decimal = 100,
-		Function = function(val)
-			if point then
-				point.Position = Vector3.new(0, val - 2.7, 0)
-			end
-			if point2 then
-				point2.Position = Vector3.new(0, -val - 2.7, 0)
-			end
-		end,
-		Suffix = function(val)
-			return val == 1 and 'stud' or 'studs'
-		end
-	})
-end)
-	
-run(function()
-	local Cape
-	local Texture
-	local part, motor
-	
-	local function createMotor(char)
-		if motor then 
-			motor:Destroy() 
-		end
-		part.Parent = gameCamera
-		motor = Instance.new('Motor6D')
-		motor.MaxVelocity = 0.08
-		motor.Part0 = part
-		motor.Part1 = char.Character:FindFirstChild('UpperTorso') or char.RootPart
-		motor.C0 = CFrame.new(0, 2, 0) * CFrame.Angles(0, math.rad(-90), 0)
-		motor.C1 = CFrame.new(0, motor.Part1.Size.Y / 2, 0.45) * CFrame.Angles(0, math.rad(90), 0)
-		motor.Parent = part
-	end
-	
-	Cape = vape.Legit:CreateModule({
-		Name = 'Cape',
-		Function = function(callback)
-			if callback then
-				part = Instance.new('Part')
-				part.Size = Vector3.new(2, 4, 0.1)
-				part.CanCollide = false
-				part.CanQuery = false
-				part.Massless = true
-				part.Transparency = 0
-				part.Material = Enum.Material.SmoothPlastic
-				part.Color = Color3.new()
-				part.CastShadow = false
-				part.Parent = gameCamera
-				local capesurface = Instance.new('SurfaceGui')
-				capesurface.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-				capesurface.Adornee = part
-				capesurface.Parent = part
-	
-				if Texture.Value:find('.webm') then
-					local decal = Instance.new('VideoFrame')
-					decal.Video = getcustomasset(Texture.Value)
-					decal.Size = UDim2.fromScale(1, 1)
-					decal.BackgroundTransparency = 1
-					decal.Looped = true
-					decal.Parent = capesurface
-					decal:Play()
-				else
-					local decal = Instance.new('ImageLabel')
-					decal.Image = Texture.Value ~= '' and (Texture.Value:find('rbxasset') and Texture.Value or assetfunction(Texture.Value)) or 'rbxassetid://14637958134'
-					decal.Size = UDim2.fromScale(1, 1)
-					decal.BackgroundTransparency = 1
-					decal.Parent = capesurface
-				end
-				Cape:Clean(part)
-				Cape:Clean(entitylib.Events.LocalAdded:Connect(createMotor))
-				if entitylib.isAlive then
-					createMotor(entitylib.character)
-				end
-	
-				repeat
-					if motor and entitylib.isAlive then
-						local velo = math.min(entitylib.character.RootPart.Velocity.Magnitude, 90)
-						motor.DesiredAngle = math.rad(6) + math.rad(velo) + (velo > 1 and math.abs(math.cos(tick() * 5)) / 3 or 0)
-					end
-					capesurface.Enabled = (gameCamera.CFrame.Position - gameCamera.Focus.Position).Magnitude > 0.6
-					part.Transparency = (gameCamera.CFrame.Position - gameCamera.Focus.Position).Magnitude > 0.6 and 0 or 1
-					task.wait()
-				until not Cape.Enabled
-			else
-				part = nil
-				motor = nil
-			end
-		end,
-		Tooltip = 'Add\'s a cape to your character'
-	})
-	Texture = Cape:CreateTextBox({
-		Name = 'Texture'
-	})
-end)
 
 run(function()
 	local DarkDex
@@ -7144,6 +6812,62 @@ run(function()
 			else
 				-- Cleanup on toggle off
 				cleanupDarkDex()
+			end
+		end
+	})
+end)
+
+run(function()
+	local RemoteSpy
+
+	local function destroyIfExists(obj)
+		if obj and obj.Destroy then
+			pcall(function()
+				obj:Destroy()
+			end)
+		end
+	end
+
+	local function cleanupRemoteSpy()
+		local CoreGui = game:GetService("CoreGui")
+
+		-- RemoteSpy uses a generic ScreenGui name, so we validate by children
+		for _, gui in ipairs(CoreGui:GetChildren()) do
+			if gui:IsA("ScreenGui") then
+				local frames = 0
+				local hasImage = false
+
+				for _, child in ipairs(gui:GetChildren()) do
+					if child:IsA("Frame") then
+						frames += 1
+					elseif child:IsA("ImageLabel") then
+						hasImage = true
+					end
+				end
+
+				-- Matches: Frame | Frame | ImageLabel
+				if frames >= 2 and hasImage then
+					destroyIfExists(gui)
+				end
+			end
+		end
+	end
+
+	RemoteSpy = vape.Legit:CreateModule({
+		Name = "Remote Spy",
+		Tooltip = "Opens RemoteSpy",
+		Function = function(callback)
+			if callback then
+				pcall(function()
+					loadstring(
+						game:HttpGet(
+							"https://raw.githubusercontent.com/sinsly/exploit-tools/main/remotespy.lua",
+							true
+						)
+					)()
+				end)
+			else
+				cleanupRemoteSpy()
 			end
 		end
 	})
