@@ -7098,3 +7098,15 @@ run(function()
 		Name = 'Texture'
 	})
 end)
+
+run(function()
+	local TestButton
+
+	TestButton = vape.Legit:CreateButton({
+		Name = "Print Hi",
+		Function = function()
+			print("hi")
+		end,
+		Tooltip = "Prints hi to console"
+	})
+end)
