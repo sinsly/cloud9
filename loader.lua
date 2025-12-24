@@ -63,7 +63,7 @@ for _, folder in pairs({'cloud9file', 'cloud9file/games', 'cloud9file/profiles',
 end
 
 -- Commit check and wipe
-if not shared.VapeDeveloper then
+if not shared.cloud9Developer then
     local commit = 'main'
     local currentCommit = (isfile('cloud9file/profiles/commit.txt') and readfile('cloud9file/profiles/commit.txt')) or ''
     if currentCommit ~= commit then
