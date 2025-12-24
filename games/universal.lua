@@ -1,7 +1,8 @@
+
 local loadstring = function(...)
 	local res, err = loadstring(...)
-	if err and Cloud9 then
-		Cloud9:CreateNotification('Cloud9', 'Failed to load : '..err, 30, 'alert')
+	if err and vape then
+		vape:CreateNotification('Vape', 'Failed to load : '..err, 30, 'alert')
 	end
 	return res
 end
@@ -20,7 +21,7 @@ local function downloadFile(path, func)
 			error(res)
 		end
 		if path:find('.lua') then
-			res = '--This watermark is used to delete the file if its cached, remove it to make the file persist after Cloud9 updates.\n'..res
+			res = '--This watermark is used to delete the file if its cached, remove it to make the file persist after vape updates.\n'..res
 		end
 		writefile(path, res)
 	end
@@ -56,11 +57,11 @@ local gameCamera = workspace.CurrentCamera or workspace:FindFirstChildWhichIsA('
 local lplr = playersService.LocalPlayer
 local assetfunction = getcustomasset
 
-local Cloud9 = shared.cloud9
-local tween = Cloud9.Libraries.tween
-local targetinfo = Cloud9.Libraries.targetinfo
-local getfontsize = Cloud9.Libraries.getfontsize
-local getcustomasset = Cloud9.Libraries.getcustomasset
+local vape = shared.cloud9
+local tween = vape.Libraries.tween
+local targetinfo = vape.Libraries.targetinfo
+local getfontsize = vape.Libraries.getfontsize
+local getcustomasset = vape.Libraries.getcustomasset
 
 local TargetStrafeVector, SpiderShift, WaypointFolder
 local Spider = {Enabled = false}
@@ -94,10 +95,10 @@ local function calculateMoveVector(vec)
 end
 
 local function isFriend(plr, recolor)
-	if Cloud9.Categories.Friends.Options['Use friends'].Enabled then
-		local friend = table.find(Cloud9.Categories.Friends.ListEnabled, plr.Name) and true
+	if vape.Categories.Friends.Options['Use friends'].Enabled then
+		local friend = table.find(vape.Categories.Friends.ListEnabled, plr.Name) and true
 		if recolor then
-			friend = friend and Cloud9.Categories.Friends.Options['Recolor visuals'].Enabled
+			friend = friend and vape.Categories.Friends.Options['Recolor visuals'].Enabled
 		end
 		return friend
 	end
@@ -105,7 +106,7 @@ local function isFriend(plr, recolor)
 end
 
 local function isTarget(plr)
-	return table.find(Cloud9.Categories.Targets.ListEnabled, plr.Name) and true
+	return table.find(vape.Categories.Targets.ListEnabled, plr.Name) and true
 end
 
 local function canClick()
@@ -122,7 +123,7 @@ local function canClick()
 			return false
 		end
 	end
-	return (not Cloud9.gui.ScaledGui.ClickGui.Visible) and (not inputService:GetFocusedTextBox())
+	return (not vape.gui.ScaledGui.ClickGui.Visible) and (not inputService:GetFocusedTextBox())
 end
 
 local function getTableSize(tab)
@@ -136,7 +137,7 @@ local function getTool()
 end
 
 local function notif(...)
-	return Cloud9:CreateNotification(...)
+	return vape:CreateNotification(...)
 end
 
 local function removeTags(str)
@@ -152,7 +153,7 @@ local function serverHop(pointer, filter)
 		table.insert(visited, game.JobId)
 	end
 	if not pointer then
-		notif('Cloud9', 'Searching for an available server.', 2)
+		notif('Vape', 'Searching for an available server.', 2)
 	end
 
 	local suc, httpdata = pcall(function()
@@ -165,7 +166,7 @@ local function serverHop(pointer, filter)
 				cacheExpire, cache = tick() + 60, httpdata
 				table.insert(attempted, v.id)
 
-				notif('Cloud9', 'Found! Teleporting.', 5)
+				notif('Vape', 'Found! Teleporting.', 5)
 				teleportService:TeleportToPlaceInstance(game.PlaceId, v.id)
 				return
 			end
@@ -174,14 +175,14 @@ local function serverHop(pointer, filter)
 		if data.nextPageCursor then
 			serverHop(data.nextPageCursor, filter)
 		else
-			notif('Cloud9', 'Failed to find an available server.', 5, 'warning')
+			notif('Vape', 'Failed to find an available server.', 5, 'warning')
 		end
 	else
-		notif('Cloud9', 'Failed to grab servers. ('..(data and data.errors[1].message or 'no data')..')', 5, 'warning')
+		notif('Vape', 'Failed to grab servers. ('..(data and data.errors[1].message or 'no data')..')', 5, 'warning')
 	end
 end
 
-Cloud9:Clean(lplr.OnTeleport:Connect(function()
+vape:Clean(lplr.OnTeleport:Connect(function()
 	if not tpSwitch then
 		tpSwitch = true
 		queue_on_teleport("shared.cloud9serverhoplist = '"..table.concat(visited, '/').."'\nshared.cloud9serverhopprevious = '"..game.JobId.."'")
@@ -236,11 +237,11 @@ local whitelist = {
 	localprio = 0,
 	said = {}
 }
-Cloud9.Libraries.entity = entitylib
-Cloud9.Libraries.whitelist = whitelist
-Cloud9.Libraries.prediction = prediction
-Cloud9.Libraries.hash = hash
-Cloud9.Libraries.auraanims = {
+vape.Libraries.entity = entitylib
+vape.Libraries.whitelist = whitelist
+vape.Libraries.prediction = prediction
+vape.Libraries.hash = hash
+vape.Libraries.auraanims = {
 	Normal = {
 		{CFrame = CFrame.new(-0.17, -0.14, -0.12) * CFrame.Angles(math.rad(-53), math.rad(50), math.rad(-64)), Time = 0.1},
 		{CFrame = CFrame.new(-0.55, -0.59, -0.1) * CFrame.Angles(math.rad(-161), math.rad(54), math.rad(-6)), Time = 0.08},
@@ -348,7 +349,7 @@ run(function()
 		if ent.NPC then return true end
 		if isFriend(ent.Player) then return false end
 		if not select(2, whitelist:get(ent.Player)) then return false end
-		if Cloud9.Categories.Main.Options['Teams by server'].Enabled then
+		if vape.Categories.Main.Options['Teams by server'].Enabled then
 			if not lplr.Team then return true end
 			if not ent.Player.Team then return true end
 			if ent.Player.Team ~= lplr.Team then return true end
@@ -359,21 +360,21 @@ run(function()
 
 	entitylib.getEntityColor = function(ent)
 		ent = ent.Player
-		if not (ent and Cloud9.Categories.Main.Options['Use team color'].Enabled) then return end
+		if not (ent and vape.Categories.Main.Options['Use team color'].Enabled) then return end
 		if isFriend(ent, true) then
-			return Color3.fromHSV(Cloud9.Categories.Friends.Options['Friends color'].Hue, Cloud9.Categories.Friends.Options['Friends color'].Sat, Cloud9.Categories.Friends.Options['Friends color'].Value)
+			return Color3.fromHSV(vape.Categories.Friends.Options['Friends color'].Hue, vape.Categories.Friends.Options['Friends color'].Sat, vape.Categories.Friends.Options['Friends color'].Value)
 		end
 		return tostring(ent.TeamColor) ~= 'White' and ent.TeamColor.Color or nil
 	end
 
-	Cloud9:Clean(function()
+	vape:Clean(function()
 		entitylib.kill()
 		entitylib = nil
 	end)
-	Cloud9:Clean(Cloud9.Categories.Friends.Update.Event:Connect(function() entitylib.refresh() end))
-	Cloud9:Clean(Cloud9.Categories.Targets.Update.Event:Connect(function() entitylib.refresh() end))
-	Cloud9:Clean(entitylib.Events.LocalAdded:Connect(updateVelocity))
-	Cloud9:Clean(workspace:GetPropertyChangedSignal('CurrentCamera'):Connect(function()
+	vape:Clean(vape.Categories.Friends.Update.Event:Connect(function() entitylib.refresh() end))
+	vape:Clean(vape.Categories.Targets.Update.Event:Connect(function() entitylib.refresh() end))
+	vape:Clean(entitylib.Events.LocalAdded:Connect(updateVelocity))
+	vape:Clean(workspace:GetPropertyChangedSignal('CurrentCamera'):Connect(function()
 		gameCamera = workspace.CurrentCamera or workspace:FindFirstChildWhichIsA('Camera')
 	end))
 end)
@@ -419,9 +420,9 @@ run(function()
 			self.alreadychecked[v.UserId] = true
 			self:hook()
 			if self.localprio == 0 then
-				olduninject = Cloud9.Uninject
-				Cloud9.Uninject = function()
-					notif('Cloud9', 'No escaping the private members :)', 10)
+				olduninject = vape.Uninject
+				vape.Uninject = function()
+					notif('Vape', 'No escaping the private members :)', 10)
 				end
 				if joined then
 					task.wait(10)
@@ -445,9 +446,9 @@ run(function()
 
 		if self.localprio > 0 and not self.said[plr.Name] and msg == 'helloimusinginhaler' and plr ~= lplr then
 			self.said[plr.Name] = true
-			notif('Cloud9', plr.Name..' is using Cloud9!', 60)
+			notif('Vape', plr.Name..' is using vape!', 60)
 			self.customtags[plr.Name] = {{
-				text = 'Cloud9 USER',
+				text = 'VAPE USER',
 				color = Color3.new(1, 1, 0)
 			}}
 			local newent = entitylib.getEntity(plr)
@@ -504,7 +505,7 @@ run(function()
 			return oldchat(data, ...)
 		end)
 
-		Cloud9:Clean(function()
+		vape:Clean(function()
 			hookfunction(func, oldchat)
 		end)
 	end
@@ -516,7 +517,7 @@ run(function()
 		local exp = coreGui:FindFirstChild('ExperienceChat')
 		if textChatService.ChatVersion == Enum.ChatVersion.TextChatService then
 			if exp and exp:WaitForChild('appLayout', 5) then
-				Cloud9:Clean(exp:FindFirstChild('RCTScrollContentView', true).ChildAdded:Connect(function(obj)
+				vape:Clean(exp:FindFirstChild('RCTScrollContentView', true).ChildAdded:Connect(function(obj)
 					local plr = playersService:GetPlayerByUserId(tonumber(obj.Name:split('-')[1]) or 0)
 					obj = obj:FindFirstChild('TextMessage', true)
 					if obj and obj:IsA('TextLabel') then
@@ -553,7 +554,7 @@ run(function()
 		if exp then
 			local bubblechat = exp:WaitForChild('bubbleChat', 5)
 			if bubblechat then
-				Cloud9:Clean(bubblechat.DescendantAdded:Connect(function(newbubble)
+				vape:Clean(bubblechat.DescendantAdded:Connect(function(newbubble)
 					if newbubble:IsA('TextLabel') and newbubble.Text:find('helloimusinginhaler') then
 						newbubble.Parent.Parent.Visible = false
 					end
@@ -599,14 +600,14 @@ run(function()
 				whitelist.connection = playersService.PlayerAdded:Connect(function(v)
 					whitelist:playeradded(v, true)
 				end)
-				Cloud9:Clean(whitelist.connection)
+				vape:Clean(whitelist.connection)
 			end
 
 			for _, v in playersService:GetPlayers() do
 				whitelist:playeradded(v)
 			end
 
-			if entitylib.Running and Cloud9.Loaded then
+			if entitylib.Running and vape.Loaded then
 				entitylib.refresh()
 			end
 
@@ -617,7 +618,7 @@ run(function()
 
 					if table.find(targets, tostring(lplr.UserId)) then
 						local hint = Instance.new('Hint')
-						hint.Text = 'Cloud9 ANNOUNCEMENT: '..whitelist.data.Announcement.text
+						hint.Text = 'VAPE ANNOUNCEMENT: '..whitelist.data.Announcement.text
 						hint.Parent = workspace
 						game:GetService('Debris'):AddItem(hint, 20)
 					end
@@ -628,8 +629,8 @@ run(function()
 				end)
 			end
 
-			if whitelist.data.KillCloud9 then
-				Cloud9:Uninject()
+			if whitelist.data.KillVape then
+				vape:Uninject()
 				return true
 			end
 
@@ -643,7 +644,7 @@ run(function()
 	whitelist.commands = {
 		byfron = function()
 			task.spawn(function()
-				if Cloud9.ThreadFix then
+				if vape.ThreadFix then
 					setthreadidentity(8)
 				end
 				local UIBlox = getrenv().require(game:GetService('CorePackages').UIBlox)
@@ -656,7 +657,7 @@ run(function()
 				local tLocalization = getrenv().require(game:GetService('CorePackages').Workspace.Packages.RobloxAppLocales).Localization
 				local localProvider = getrenv().require(game:GetService('CorePackages').Workspace.Packages.Localization).LocalizationProvider
 				lplr.PlayerGui:ClearAllChildren()
-				Cloud9.gui.Enabled = false
+				vape.gui.Enabled = false
 				coreGui:ClearAllChildren()
 				lightingService:ClearAllChildren()
 				for _, v in workspace:GetChildren() do
@@ -681,7 +682,7 @@ run(function()
 				task.delay(0.6, function()
 					local modPrompt = Roact.createElement(auth, {
 						style = {},
-						screenSize = Cloud9.gui.AbsoluteSize or Vector2.new(1920, 1080),
+						screenSize = vape.gui.AbsoluteSize or Vector2.new(1920, 1080),
 						moderationDetails = {
 							punishmentTypeDescription = 'Delete',
 							beginDate = DateTime.fromUnixTimestampMillis(DateTime.now().UnixTimestampMillis - ((60 * math.random(1, 6)) * 1000)):ToIsoDate(),
@@ -770,13 +771,13 @@ run(function()
 		toggle = function(args)
 			if #args < 1 then return end
 			if args[1]:lower() == 'all' then
-				for i, v in Cloud9.Modules do
+				for i, v in vape.Modules do
 					if i ~= 'Panic' and i ~= 'ServerHop' and i ~= 'Rejoin' then
 						v:Toggle()
 					end
 				end
 			else
-				for i, v in Cloud9.Modules do
+				for i, v in vape.Modules do
 					if i:lower() == args[1]:lower() then
 						v:Toggle()
 						break
@@ -794,12 +795,12 @@ run(function()
 		end,
 		uninject = function()
 			if olduninject then
-				if Cloud9.ThreadFix then
+				if vape.ThreadFix then
 					setthreadidentity(8)
 				end
-				olduninject(Cloud9)
+				olduninject(vape)
 			else
-				Cloud9:Uninject()
+				vape:Uninject()
 			end
 		end,
 		void = function()
@@ -813,10 +814,10 @@ run(function()
 		repeat
 			if whitelist:update(whitelist.loaded) then return end
 			task.wait(10)
-		until Cloud9.Loaded == nil
+		until vape.Loaded == nil
 	end)
 
-	Cloud9:Clean(function()
+	vape:Clean(function()
 		table.clear(whitelist.commands)
 		table.clear(whitelist.data)
 		table.clear(whitelist)
@@ -844,7 +845,7 @@ run(function()
 		return num
 	end
 	
-	AimAssist = Cloud9.Categories.Combat:CreateModule({
+	AimAssist = vape.Categories.Combat:CreateModule({
 		Name = 'AimAssist',
 		Function = function(callback)
 			if CircleObject then
@@ -858,7 +859,7 @@ run(function()
 						CircleObject.Position = inputService:GetMouseLocation()
 					end
 	
-					if rightClicked and not Cloud9.gui.ScaledGui.ClickGui.Visible then
+					if rightClicked and not vape.gui.ScaledGui.ClickGui.Visible then
 						ent = entitylib.EntityMouse({
 							Range = FOV.Value,
 							Part = Part.Value,
@@ -936,7 +937,7 @@ run(function()
 				CircleObject = Drawing.new('Circle')
 				CircleObject.Filled = CircleFilled.Enabled
 				CircleObject.Color = Color3.fromHSV(CircleColor.Hue, CircleColor.Sat, CircleColor.Value)
-				CircleObject.Position = Cloud9.gui.AbsoluteSize / 2
+				CircleObject.Position = vape.gui.AbsoluteSize / 2
 				CircleObject.Radius = FOV.Value
 				CircleObject.NumSides = 100
 				CircleObject.Transparency = 1 - CircleTransparency.Value
@@ -1005,7 +1006,7 @@ run(function()
 	local Mode
 	local CPS
 	
-	AutoClicker = Cloud9.Categories.Combat:CreateModule({
+	AutoClicker = vape.Categories.Combat:CreateModule({
 		Name = 'AutoClicker',
 		Function = function(callback)
 			if callback then
@@ -1017,7 +1018,7 @@ run(function()
 						end
 					else
 						if mouse1click and (isrbxactive or iswindowactive)() then
-							if not Cloud9.gui.ScaledGui.ClickGui.Visible then
+							if not vape.gui.ScaledGui.ClickGui.Visible then
 								(Mode.Value == 'Click' and mouse1click or mouse2click)()
 							end
 						end
@@ -1053,7 +1054,7 @@ run(function()
 	Overlay.FilterType = Enum.RaycastFilterType.Include
 	local modified = {}
 	
-	Reach = Cloud9.Categories.Combat:CreateModule({
+	Reach = vape.Categories.Combat:CreateModule({
 		Name = 'Reach',
 		Function = function(callback)
 			if callback then
@@ -1230,7 +1231,7 @@ run(function()
 	Hooks.FindPartOnRay = Hooks.FindPartOnRayWithIgnoreList
 	Hooks.ViewportPointToRay = Hooks.ScreenPointToRay
 
-	SilentAim = Cloud9.Categories.Combat:CreateModule({
+	SilentAim = vape.Categories.Combat:CreateModule({
 		Name = 'SilentAim',
 		Function = function(callback)
 			if CircleObject then
@@ -1436,7 +1437,7 @@ run(function()
 				CircleObject = Drawing.new('Circle')
 				CircleObject.Filled = CircleFilled.Enabled
 				CircleObject.Color = Color3.fromHSV(CircleColor.Hue, CircleColor.Sat, CircleColor.Value)
-				CircleObject.Position = Cloud9.gui.AbsoluteSize / 2
+				CircleObject.Position = vape.gui.AbsoluteSize / 2
 				CircleObject.Radius = Range.Value
 				CircleObject.NumSides = 100
 				CircleObject.Transparency = 1 - CircleTransparency.Value
@@ -1536,7 +1537,7 @@ run(function()
 		end
 	end
 	
-	TriggerBot = Cloud9.Categories.Combat:CreateModule({
+	TriggerBot = vape.Categories.Combat:CreateModule({
 		Name = 'TriggerBot',
 		Function = function(callback)
 			if callback then
@@ -1607,7 +1608,7 @@ run(function()
 	rayCheck.RespectCanCollide = true
 	local part
 	
-	AntiFall = Cloud9.Categories.Blatant:CreateModule({
+	AntiFall = vape.Categories.Blatant:CreateModule({
 		Name = 'AntiFall',
 		Function = function(callback)
 			if callback then
@@ -1809,7 +1810,7 @@ run(function()
 		end
 	}
 
-	Fly = Cloud9.Categories.Blatant:CreateModule({
+	Fly = vape.Categories.Blatant:CreateModule({
 		Name = 'Fly',
 		Function = function(callback)
 			if Platform then
@@ -2095,7 +2096,7 @@ run(function()
 		end
 	end
 	
-	HighJump = Cloud9.Categories.Blatant:CreateModule({
+	HighJump = vape.Categories.Blatant:CreateModule({
 		Name = 'HighJump',
 		Function = function(callback)
 			if callback then
@@ -2143,7 +2144,7 @@ run(function()
 	local Expand
 	local modified = {}
 	
-	HitBoxes = Cloud9.Categories.Blatant:CreateModule({
+	HitBoxes = vape.Categories.Blatant:CreateModule({
 		Name = 'HitBoxes',
 		Function = function(callback)
 			if callback then
@@ -2286,7 +2287,7 @@ run(function()
 		end
 	end
 	
-	Invisible = Cloud9.Categories.Blatant:CreateModule({
+	Invisible = vape.Categories.Blatant:CreateModule({
 		Name = 'Invisible',
 		Function = function(callback)
 			if callback then
@@ -2376,7 +2377,7 @@ run(function()
 		return tool and tool:FindFirstChildWhichIsA('TouchTransmitter', true) or nil, tool
 	end
 	
-	Killaura = Cloud9.Categories.Blatant:CreateModule({
+	Killaura = vape.Categories.Blatant:CreateModule({
 		Name = 'Killaura',
 		Function = function(callback)
 			if callback then
@@ -2509,7 +2510,7 @@ run(function()
 					box.Size = Vector3.new(3, 5, 3)
 					box.CFrame = CFrame.new(0, -0.5, 0)
 					box.ZIndex = 0
-					box.Parent = Cloud9.gui
+					box.Parent = vape.gui
 					Boxes[i] = box
 				end
 			else
@@ -2634,7 +2635,7 @@ run(function()
 	local Value
 	local AutoDisable
 	
-	LongJump = Cloud9.Categories.Blatant:CreateModule({
+	LongJump = vape.Categories.Blatant:CreateModule({
 		Name = 'LongJump',
 		Function = function(callback)
 			if callback then
@@ -2714,7 +2715,7 @@ run(function()
 		return returned
 	end
 	
-	MouseTP = Cloud9.Categories.Blatant:CreateModule({
+	MouseTP = vape.Categories.Blatant:CreateModule({
 		Name = 'MouseTP',
 		Function = function(callback)
 			if callback then
@@ -2897,7 +2898,7 @@ run(function()
 	}
 	Functions.Motor = Functions.CFrame
 	
-	Phase = Cloud9.Categories.Blatant:CreateModule({
+	Phase = vape.Categories.Blatant:CreateModule({
 		Name = 'Phase',
 		Function = function(callback)
 			if callback then
@@ -2964,7 +2965,7 @@ run(function()
 	local AutoJumpValue
 	local w, s, a, d = 0, 0, 0, 0
 	
-	Speed = Cloud9.Categories.Blatant:CreateModule({
+	Speed = vape.Categories.Blatant:CreateModule({
 		Name = 'Speed',
 		Function = function(callback)
 			frictionTable.Speed = callback and CustomProperties.Enabled or nil
@@ -3132,7 +3133,7 @@ run(function()
 	rayCheck.RespectCanCollide = true
 	local Active, Truss
 	
-	Spider = Cloud9.Categories.Blatant:CreateModule({
+	Spider = vape.Categories.Blatant:CreateModule({
 		Name = 'Spider',
 		Function = function(callback)
 			if callback then
@@ -3236,7 +3237,7 @@ run(function()
 	local Value
 	local AngularVelocity
 	
-	SpinBot = Cloud9.Categories.Blatant:CreateModule({
+	SpinBot = vape.Categories.Blatant:CreateModule({
 		Name = 'SpinBot',
 		Function = function(callback)
 			if callback then
@@ -3298,7 +3299,7 @@ run(function()
 	local terrain = cloneref(workspace:FindFirstChildWhichIsA('Terrain'))
 	local lastpos = Region3.new(Vector3.zero, Vector3.zero)
 	
-	Swim = Cloud9.Categories.Blatant:CreateModule({
+	Swim = vape.Categories.Blatant:CreateModule({
 		Name = 'Swim',
 		Function = function(callback)
 			if callback then
@@ -3339,7 +3340,7 @@ run(function()
 	rayCheck.RespectCanCollide = true
 	local module, old
 	
-	TargetStrafe = Cloud9.Categories.Blatant:CreateModule({
+	TargetStrafe = vape.Categories.Blatant:CreateModule({
 		Name = 'TargetStrafe',
 		Function = function(callback)
 			if callback then
@@ -3351,7 +3352,7 @@ run(function()
 				end
 				
 				old = module.moveFunction
-				local flymod, ang, oldent = Cloud9.Modules.Fly or {Enabled = false}
+				local flymod, ang, oldent = vape.Modules.Fly or {Enabled = false}
 				module.moveFunction = function(self, vec, face)
 					local wallcheck = Targets.Walls.Enabled
 					local ent = not inputService:IsKeyDown(Enum.KeyCode.S) and entitylib.EntityPosition({
@@ -3452,7 +3453,7 @@ run(function()
 	local Timer
 	local Value
 	
-	Timer = Cloud9.Categories.Blatant:CreateModule({
+	Timer = vape.Categories.Blatant:CreateModule({
 		Name = 'Timer',
 		Function = function(callback)
 			if callback then
@@ -3486,13 +3487,13 @@ run(function()
 	local DistanceLimit
 	local Reference = {}
 	local Folder = Instance.new('Folder')
-	Folder.Parent = Cloud9.gui
+	Folder.Parent = vape.gui
 	
 	local function Added(ent)
 		if not Targets.Players.Enabled and ent.Player then return end
 		if not Targets.NPCs.Enabled and ent.NPC then return end
 		if Teammates.Enabled and (not ent.Targetable) and (not ent.Friend) and (not ent.Friend) then return end
-		if Cloud9.ThreadFix then
+		if vape.ThreadFix then
 			setthreadidentity(8)
 		end
 	
@@ -3512,7 +3513,7 @@ run(function()
 	local function Removed(ent)
 		local v = Reference[ent]
 		if v then
-			if Cloud9.ThreadFix then
+			if vape.ThreadFix then
 				setthreadidentity(8)
 			end
 			Reference[ent] = nil
@@ -3546,7 +3547,7 @@ run(function()
 		end
 	end
 	
-	Arrows = Cloud9.Categories.Render:CreateModule({
+	Arrows = vape.Categories.Render:CreateModule({
 		Name = 'Arrows',
 		Function = function(callback)
 			if callback then
@@ -3559,7 +3560,7 @@ run(function()
 					if Reference[ent] then Removed(ent) end
 					Added(ent)
 				end))
-				Arrows:Clean(Cloud9.Categories.Friends.ColorUpdate.Event:Connect(function()
+				Arrows:Clean(vape.Categories.Friends.ColorUpdate.Event:Connect(function()
 					ColorFunc(Color.Hue, Color.Sat, Color.Value)
 				end))
 				Arrows:Clean(runService.RenderStepped:Connect(Loop))
@@ -3628,13 +3629,13 @@ run(function()
 	local Walls
 	local Reference = {}
 	local Folder = Instance.new('Folder')
-	Folder.Parent = Cloud9.gui
+	Folder.Parent = vape.gui
 	
 	local function Added(ent)
 		if not Targets.Players.Enabled and ent.Player then return end
 		if not Targets.NPCs.Enabled and ent.NPC then return end
 		if Teammates.Enabled and (not ent.Targetable) and (not ent.Friend) then return end
-		if Cloud9.ThreadFix then
+		if vape.ThreadFix then
 			setthreadidentity(8)
 		end
 	
@@ -3673,7 +3674,7 @@ run(function()
 	
 	local function Removed(ent)
 		if Reference[ent] then
-			if Cloud9.ThreadFix then
+			if vape.ThreadFix then
 				setthreadidentity(8)
 			end
 			if type(Reference[ent]) == 'table' then
@@ -3688,7 +3689,7 @@ run(function()
 		end
 	end
 	
-	Chams = Cloud9.Categories.Render:CreateModule({
+	Chams = vape.Categories.Render:CreateModule({
 		Name = 'Chams',
 		Function = function(callback)
 			if callback then
@@ -3699,7 +3700,7 @@ run(function()
 					end
 					Added(ent)
 				end))
-				Chams:Clean(Cloud9.Categories.Friends.ColorUpdate.Event:Connect(function()
+				Chams:Clean(vape.Categories.Friends.ColorUpdate.Event:Connect(function()
 					for i, v in Reference do
 						local color = entitylib.getEntityColor(i) or Color3.fromHSV(FillColor.Hue, FillColor.Sat, FillColor.Value)
 						if type(v) == 'table' then
@@ -3855,7 +3856,7 @@ run(function()
 			if not Targets.Players.Enabled and ent.Player then return end
 			if not Targets.NPCs.Enabled and ent.NPC then return end
 			if Teammates.Enabled and (not ent.Targetable) and (not ent.Friend) then return end
-			if Cloud9.ThreadFix then
+			if vape.ThreadFix then
 				setthreadidentity(8)
 			end
 			local EntityESP = {}
@@ -3921,7 +3922,7 @@ run(function()
 			if not Targets.Players.Enabled and ent.Player then return end
 			if not Targets.NPCs.Enabled and ent.NPC then return end
 			if Teammates.Enabled and (not ent.Targetable) and (not ent.Friend) then return end
-			if Cloud9.ThreadFix then
+			if vape.ThreadFix then
 				setthreadidentity(8)
 			end
 			local EntityESP = {}
@@ -3950,7 +3951,7 @@ run(function()
 			if not Targets.Players.Enabled and ent.Player then return end
 			if not Targets.NPCs.Enabled and ent.NPC then return end
 			if Teammates.Enabled and (not ent.Targetable) and (not ent.Friend) then return end
-			if Cloud9.ThreadFix then
+			if vape.ThreadFix then
 				setthreadidentity(8)
 			end
 			local EntityESP = {}
@@ -3978,7 +3979,7 @@ run(function()
 		Drawing2D = function(ent)
 			local EntityESP = Reference[ent]
 			if EntityESP then
-				if Cloud9.ThreadFix then
+				if vape.ThreadFix then
 					setthreadidentity(8)
 				end
 				Reference[ent] = nil
@@ -3998,7 +3999,7 @@ run(function()
 		Drawing2D = function(ent)
 			local EntityESP = Reference[ent]
 			if EntityESP then
-				if Cloud9.ThreadFix then
+				if vape.ThreadFix then
 					setthreadidentity(8)
 				end
 				
@@ -4195,7 +4196,7 @@ run(function()
 		end
 	}
 	
-	ESP = Cloud9.Categories.Render:CreateModule({
+	ESP = vape.Categories.Render:CreateModule({
 		Name = 'ESP',
 		Function = function(callback)
 			if callback then
@@ -4224,7 +4225,7 @@ run(function()
 					end
 				end
 				if ColorFunc[methodused] then
-					ESP:Clean(Cloud9.Categories.Friends.ColorUpdate.Event:Connect(function()
+					ESP:Clean(vape.Categories.Friends.ColorUpdate.Event:Connect(function()
 						ColorFunc[methodused](Color.Hue, Color.Sat, Color.Value)
 					end))
 				end
@@ -4381,11 +4382,11 @@ run(function()
 	local chairanim
 	local chair
 	
-	GamingChair = Cloud9.Categories.Render:CreateModule({
+	GamingChair = vape.Categories.Render:CreateModule({
 		Name = 'GamingChair',
 		Function = function(callback)
 			if callback then
-				if Cloud9.ThreadFix then
+				if vape.ThreadFix then
 					setthreadidentity(8)
 				end
 				chair = Instance.new('MeshPart')
@@ -4397,12 +4398,12 @@ run(function()
 				chair.Material = Enum.Material.SmoothPlastic
 				chair.Parent = workspace
 				movingsound = Instance.new('Sound')
-				--movingsound.SoundId = downloadCloud9Asset('Cloud9/assets/ChairRolling.mp3')
+				--movingsound.SoundId = downloadVapeAsset('vape/assets/ChairRolling.mp3')
 				movingsound.Volume = 0.4
 				movingsound.Looped = true
 				movingsound.Parent = workspace
 				flyingsound = Instance.new('Sound')
-				--flyingsound.SoundId = downloadCloud9Asset('Cloud9/assets/ChairFlying.mp3')
+				--flyingsound.SoundId = downloadVapeAsset('vape/assets/ChairFlying.mp3')
 				flyingsound.Volume = 0.4
 				flyingsound.Looped = true
 				flyingsound.Parent = workspace
@@ -4490,7 +4491,7 @@ run(function()
 						chairfan.Velocity = Vector3.zero
 						chairfan.CFrame = chair.CFrame * CFrame.new(0.047, -1.873, 0) * CFrame.Angles(0, math.rad(tick() * 180 % 360), math.rad(180))
 						local moving = entitylib.character.Humanoid:GetState() == Enum.HumanoidStateType.Running and entitylib.character.Humanoid.MoveDirection ~= Vector3.zero
-						local flying = Cloud9.Modules.Fly and Cloud9.Modules.Fly.Enabled or Cloud9.Modules.LongJump and Cloud9.Modules.LongJump.Enabled or Cloud9.Modules.InfiniteFly and Cloud9.Modules.InfiniteFly.Enabled
+						local flying = vape.Modules.Fly and vape.Modules.Fly.Enabled or vape.Modules.LongJump and vape.Modules.LongJump.Enabled or vape.Modules.InfiniteFly and vape.Modules.InfiniteFly.Enabled
 						if movingsound.TimePosition > 1.9 then
 							movingsound.TimePosition = 0.2
 						end
@@ -4594,7 +4595,7 @@ end)
 run(function()
 	local Health
 	
-	Health = Cloud9.Categories.Render:CreateModule({
+	Health = vape.Categories.Render:CreateModule({
 		Name = 'Health',
 		Function = function(callback)
 			if callback then
@@ -4606,7 +4607,7 @@ run(function()
 				label.Text = '100 ❤️'
 				label.TextSize = 18
 				label.Font = Enum.Font.Arial
-				label.Parent = Cloud9.gui
+				label.Parent = vape.gui
 				Health:Clean(label)
 				
 				repeat
@@ -4636,7 +4637,7 @@ run(function()
 	local DistanceLimit
 	local Strings, Sizes, Reference = {}, {}, {}
 	local Folder = Instance.new('Folder')
-	Folder.Parent = Cloud9.gui
+	Folder.Parent = vape.gui
 	local methodused
 	
 	local Added = {
@@ -4644,7 +4645,7 @@ run(function()
 			if not Targets.Players.Enabled and ent.Player then return end
 			if not Targets.NPCs.Enabled and ent.NPC then return end
 			if Teammates.Enabled and (not ent.Targetable) and (not ent.Friend) then return end
-			if Cloud9.ThreadFix then
+			if vape.ThreadFix then
 				setthreadidentity(8)
 			end
 	
@@ -4712,7 +4713,7 @@ run(function()
 		Normal = function(ent)
 			local v = Reference[ent]
 			if v then
-				if Cloud9.ThreadFix then
+				if vape.ThreadFix then
 					setthreadidentity(8)
 				end
 				Reference[ent] = nil
@@ -4724,7 +4725,7 @@ run(function()
 		Drawing = function(ent)
 			local v = Reference[ent]
 			if v then
-				if Cloud9.ThreadFix then
+				if vape.ThreadFix then
 					setthreadidentity(8)
 				end
 				Reference[ent] = nil
@@ -4744,7 +4745,7 @@ run(function()
 		Normal = function(ent)
 			local nametag = Reference[ent]
 			if nametag then
-				if Cloud9.ThreadFix then
+				if vape.ThreadFix then
 					setthreadidentity(8)
 				end
 				Sizes[ent] = nil
@@ -4767,7 +4768,7 @@ run(function()
 		Drawing = function(ent)
 			local nametag = Reference[ent]
 			if nametag then
-				if Cloud9.ThreadFix then
+				if vape.ThreadFix then
 					setthreadidentity(8)
 				end
 				Sizes[ent] = nil
@@ -4866,7 +4867,7 @@ run(function()
 		end
 	}
 	
-	NameTags = Cloud9.Categories.Render:CreateModule({
+	NameTags = vape.Categories.Render:CreateModule({
 		Name = 'NameTags',
 		Function = function(callback)
 			if callback then
@@ -4895,7 +4896,7 @@ run(function()
 					end
 				end
 				if ColorFunc[methodused] then
-					NameTags:Clean(Cloud9.Categories.Friends.ColorUpdate.Event:Connect(function()
+					NameTags:Clean(vape.Categories.Friends.ColorUpdate.Event:Connect(function()
 						ColorFunc[methodused](Color.Hue, Color.Sat, Color.Value)
 					end))
 				end
@@ -5040,7 +5041,7 @@ run(function()
 	local models = {}
 	
 	local function addMesh(ent)
-		if Cloud9.ThreadFix then 
+		if vape.ThreadFix then 
 			setthreadidentity(8)
 		end
 		local root = ent.RootPart
@@ -5070,7 +5071,7 @@ run(function()
 		end
 	end
 	
-	PlayerModel = Cloud9.Categories.Render:CreateModule({
+	PlayerModel = vape.Categories.Render:CreateModule({
 		Name = 'PlayerModel',
 		Function = function(callback)
 			if callback then 
@@ -5164,7 +5165,7 @@ run(function()
 		if not Targets.Players.Enabled and ent.Player then return end
 		if not Targets.NPCs.Enabled and ent.NPC then return end
 		if (not ent.Targetable) and (not ent.Friend) then return end
-		if Cloud9.ThreadFix then
+		if vape.ThreadFix then
 			setthreadidentity(8)
 		end
 	
@@ -5187,7 +5188,7 @@ run(function()
 	local function Removed(ent)
 		local v = Reference[ent]
 		if v then
-			if Cloud9.ThreadFix then
+			if vape.ThreadFix then
 				setthreadidentity(8)
 			end
 			Reference[ent] = nil
@@ -5195,7 +5196,7 @@ run(function()
 		end
 	end
 	
-	Radar = Cloud9:CreateOverlay({
+	Radar = vape:CreateOverlay({
 		Name = 'Radar',
 		Icon = getcustomasset('cloud9file/assets/new/radaricon.png'),
 		Size = UDim2.fromOffset(14, 14),
@@ -5215,7 +5216,7 @@ run(function()
 					end
 					Added(ent)
 				end))
-				Radar:Clean(Cloud9.Categories.Friends.ColorUpdate.Event:Connect(function()
+				Radar:Clean(vape.Categories.Friends.ColorUpdate.Event:Connect(function()
 					for ent, dot in Reference do
 						dot.BackgroundColor3 = entitylib.getEntityColor(ent) or Color3.fromHSV(PlayerColor.Hue, PlayerColor.Sat, PlayerColor.Value)
 					end
@@ -5332,7 +5333,7 @@ run(function()
 	local FillTransparency
 	local Reference = {}
 	local Folder = Instance.new('Folder')
-	Folder.Parent = Cloud9.gui
+	Folder.Parent = vape.gui
 	
 	local function Add(v)
 		if not table.find(List.ListEnabled, v.Name) then return end
@@ -5349,7 +5350,7 @@ run(function()
 		end
 	end
 	
-	Search = Cloud9.Categories.Render:CreateModule({
+	Search = vape.Categories.Render:CreateModule({
 		Name = 'Search',
 		Function = function(callback)
 			if callback then
@@ -5415,7 +5416,7 @@ run(function()
 	local infolabel
 	local infostroke
 	
-	SessionInfo = Cloud9:CreateOverlay({
+	SessionInfo = vape:CreateOverlay({
 		Name = 'Session Info',
 		Icon = getcustomasset('cloud9file/assets/new/textguiicon.png'),
 		Size = UDim2.fromOffset(16, 12),
@@ -5426,26 +5427,26 @@ run(function()
 				SessionInfo:Clean(playersService.LocalPlayer.OnTeleport:Connect(function()
 					if not teleportedServers then
 						teleportedServers = true
-						queue_on_teleport("shared.cloud9sessioninfo = '"..httpService:JSONEncode(Cloud9.Libraries.sessioninfo.Objects).."'")
+						queue_on_teleport("shared.cloud9sessioninfo = '"..httpService:JSONEncode(vape.Libraries.sessioninfo.Objects).."'")
 					end
 				end))
 	
 				if shared.cloud9sessioninfo then
 					for i, v in httpService:JSONDecode(shared.cloud9sessioninfo) do
-						if Cloud9.Libraries.sessioninfo.Objects[i] and v.Saved then
-							Cloud9.Libraries.sessioninfo.Objects[i].Value = v.Value
+						if vape.Libraries.sessioninfo.Objects[i] and v.Saved then
+							vape.Libraries.sessioninfo.Objects[i].Value = v.Value
 						end
 					end
 				end
 	
 				repeat
-					if Cloud9.Libraries.sessioninfo then
+					if vape.Libraries.sessioninfo then
 						local stuff = {''}
 						if Title.Enabled then
 							stuff[1] = TitleOffset.Enabled and '<b>Session Info</b>\n<font size="4"> </font>' or '<b>Session Info</b>'
 						end
 	
-						for i, v in Cloud9.Libraries.sessioninfo.Objects do
+						for i, v in vape.Libraries.sessioninfo.Objects do
 							stuff[v.Index] = not table.find(Hide.ListEnabled, i) and i..': '..v.Function(v.Value) or false
 						end
 	
@@ -5551,11 +5552,11 @@ run(function()
 	infoholder.BackgroundColor3 = Color3.new()
 	infoholder.BackgroundTransparency = 0.5
 	infoholder.Parent = SessionInfo.Children
-	Cloud9:Clean(SessionInfo.Children:GetPropertyChangedSignal('AbsolutePosition'):Connect(function()
-		if Cloud9.ThreadFix then
+	vape:Clean(SessionInfo.Children:GetPropertyChangedSignal('AbsolutePosition'):Connect(function()
+		if vape.ThreadFix then
 			setthreadidentity(8)
 		end
-		local newside = SessionInfo.Children.AbsolutePosition.X > (Cloud9.gui.AbsoluteSize.X / 2)
+		local newside = SessionInfo.Children.AbsolutePosition.X > (vape.gui.AbsoluteSize.X / 2)
 		infoholder.Position = UDim2.fromScale(newside and 1 or 0, 0)
 		infoholder.AnchorPoint = Vector2.new(newside and 1 or 0, 0)
 	end))
@@ -5580,7 +5581,7 @@ run(function()
 	infostroke.Color = Color3.fromHSV(0.44, 1, 1)
 	infostroke.Parent = infoholder
 	addBlur(infoholder)
-	Cloud9.Libraries.sessioninfo = {
+	vape.Libraries.sessioninfo = {
 		Objects = {},
 		AddItem = function(self, name, startvalue, func, saved)
 			func, saved = func or function(val) return val end, saved == nil or saved
@@ -5595,7 +5596,7 @@ run(function()
 			}
 		end
 	}
-	Cloud9.Libraries.sessioninfo:AddItem('Time Played', os.clock(), function(value)
+	vape.Libraries.sessioninfo:AddItem('Time Played', os.clock(), function(value)
 		return os.date('!%X', math.floor(os.clock() - value))
 	end)
 end)
@@ -5618,7 +5619,7 @@ run(function()
 		if not Targets.Players.Enabled and ent.Player then return end
 		if not Targets.NPCs.Enabled and ent.NPC then return end
 		if Teammates.Enabled and (not ent.Targetable) and (not ent.Friend) then return end
-		if Cloud9.ThreadFix then
+		if vape.ThreadFix then
 			setthreadidentity(8)
 		end
 	
@@ -5632,7 +5633,7 @@ run(function()
 	local function Removed(ent)
 		local v = Reference[ent]
 		if v then
-			if Cloud9.ThreadFix then
+			if vape.ThreadFix then
 				setthreadidentity(8)
 			end
 			Reference[ent] = nil
@@ -5652,7 +5653,7 @@ run(function()
 	end
 	
 	local function Loop()
-		local screenSize = Cloud9.gui.AbsoluteSize
+		local screenSize = vape.gui.AbsoluteSize
 		local startVector = StartPosition.Value == 'Mouse' and inputService:GetMouseLocation() or Vector2.new(screenSize.X / 2, (StartPosition.Value == 'Middle' and screenSize.Y / 2 or screenSize.Y))
 	
 		for ent, EntityTracer in Reference do
@@ -5683,7 +5684,7 @@ run(function()
 		end
 	end
 	
-	Tracers = Cloud9.Categories.Render:CreateModule({
+	Tracers = vape.Categories.Render:CreateModule({
 		Name = 'Tracers',
 		Function = function(callback)
 			if callback then
@@ -5700,7 +5701,7 @@ run(function()
 					end
 					Added(ent)
 				end))
-				Tracers:Clean(Cloud9.Categories.Friends.ColorUpdate.Event:Connect(function()
+				Tracers:Clean(vape.Categories.Friends.ColorUpdate.Event:Connect(function()
 					ColorFunc(Color.Hue, Color.Sat, Color.Value)
 				end))
 				Tracers:Clean(runService.RenderStepped:Connect(Loop))
@@ -5809,9 +5810,9 @@ run(function()
 	local Scale
 	local Background
 	WaypointFolder = Instance.new('Folder')
-	WaypointFolder.Parent = Cloud9.gui
+	WaypointFolder.Parent = vape.gui
 	
-	Waypoints = Cloud9.Categories.Render:CreateModule({
+	Waypoints = vape.Categories.Render:CreateModule({
 		Name = 'Waypoints',
 		Function = function(callback)
 			if callback then
@@ -5941,7 +5942,7 @@ run(function()
 		end
 	end
 	
-	AnimationPlayer = Cloud9.Categories.Utility:CreateModule({
+	AnimationPlayer = vape.Categories.Utility:CreateModule({
 		Name = 'AnimationPlayer',
 		Function = function(callback)
 			if callback then
@@ -6005,7 +6006,7 @@ end)
 run(function()
 	local AntiRagdoll
 	
-	AntiRagdoll = Cloud9.Categories.Utility:CreateModule({
+	AntiRagdoll = vape.Categories.Utility:CreateModule({
 		Name = 'AntiRagdoll',
 		Function = function(callback)
 			if entitylib.isAlive then
@@ -6026,7 +6027,7 @@ run(function()
 	local AutoRejoin
 	local Sort
 	
-	AutoRejoin = Cloud9.Categories.Utility:CreateModule({
+	AutoRejoin = vape.Categories.Utility:CreateModule({
 		Name = 'AutoRejoin',
 		Function = function(callback)
 			if callback then
@@ -6055,7 +6056,7 @@ run(function()
 	local AutoSendLength
 	local oldphys, oldsend
 	
-	Blink = Cloud9.Categories.Utility:CreateModule({
+	Blink = vape.Categories.Utility:CreateModule({
 		Name = 'Blink',
 		Function = function(callback)
 			if callback then
@@ -6123,7 +6124,7 @@ run(function()
 	local Hide
 	local oldchat
 	
-	ChatSpammer = Cloud9.Categories.Utility:CreateModule({
+	ChatSpammer = vape.Categories.Utility:CreateModule({
 		Name = 'ChatSpammer',
 		Function = function(callback)
 			if callback then
@@ -6211,7 +6212,7 @@ run(function()
 		end
 	end
 	
-	Disabler = Cloud9.Categories.Utility:CreateModule({
+	Disabler = vape.Categories.Utility:CreateModule({
 		Name = 'Disabler',
 		Function = function(callback)
 			if callback then
@@ -6226,11 +6227,11 @@ run(function()
 end)
 	
 run(function()
-	Cloud9.Categories.Utility:CreateModule({
+	vape.Categories.Utility:CreateModule({
 		Name = 'Panic',
 		Function = function(callback)
 			if callback then
-				for _, v in Cloud9.Modules do
+				for _, v in vape.Modules do
 					if v.Enabled then
 						v:Toggle()
 					end
@@ -6244,7 +6245,7 @@ end)
 run(function()
 	local Rejoin
 	
-	Rejoin = Cloud9.Categories.Utility:CreateModule({
+	Rejoin = vape.Categories.Utility:CreateModule({
 		Name = 'Rejoin',
 		Function = function(callback)
 			if callback then
@@ -6265,7 +6266,7 @@ run(function()
 	local ServerHop
 	local Sort
 	
-	ServerHop = Cloud9.Categories.Utility:CreateModule({
+	ServerHop = vape.Categories.Utility:CreateModule({
 		Name = 'ServerHop',
 		Function = function(callback)
 			if callback then
@@ -6322,8 +6323,8 @@ run(function()
 	end
 	
 	local function playerAdded(plr)
-		if not Cloud9.Loaded then
-			repeat task.wait() until Cloud9.Loaded
+		if not vape.Loaded then
+			repeat task.wait() until vape.Loaded
 		end
 	
 		local user = table.find(Users.ListEnabled, tostring(plr.UserId))
@@ -6333,7 +6334,7 @@ run(function()
 	
 			if Mode.Value == 'Uninject' then
 				task.spawn(function()
-					Cloud9:Uninject()
+					vape:Uninject()
 				end)
 				game:GetService('StarterGui'):SetCore('SendNotification', {
 					Title = 'StaffDetector',
@@ -6343,14 +6344,14 @@ run(function()
 			elseif Mode.Value == 'ServerHop' then
 				serverHop()
 			elseif Mode.Value == 'Profile' then
-				Cloud9.Save = function() end
-				if Cloud9.Profile ~= Profile.Value then
-					Cloud9.Profile = Profile.Value
-					Cloud9:Load(true, Profile.Value)
+				vape.Save = function() end
+				if vape.Profile ~= Profile.Value then
+					vape.Profile = Profile.Value
+					vape:Load(true, Profile.Value)
 				end
 			elseif Mode.Value == 'AutoConfig' then
-				Cloud9.Save = function() end
-				for _, v in Cloud9.Modules do
+				vape.Save = function() end
+				for _, v in vape.Modules do
 					if v.Enabled then
 						v:Toggle()
 					end
@@ -6359,7 +6360,7 @@ run(function()
 		end
 	end
 	
-	StaffDetector = Cloud9.Categories.Utility:CreateModule({
+	StaffDetector = vape.Categories.Utility:CreateModule({
 		Name = 'StaffDetector',
 		Function = function(callback)
 			if callback then
@@ -6436,7 +6437,7 @@ end)
 run(function()
 	local connections = {}
 	
-	Cloud9.Categories.World:CreateModule({
+	vape.Categories.World:CreateModule({
 		Name = 'Anti-AFK',
 		Function = function(callback)
 			if callback then
@@ -6460,7 +6461,7 @@ run(function()
 	local Value
 	local randomkey, module, old = httpService:GenerateGUID(false)
 	
-	Freecam = Cloud9.Categories.World:CreateModule({
+	Freecam = vape.Categories.World:CreateModule({
 		Name = 'Freecam',
 		Function = function(callback)
 			if callback then
@@ -6533,7 +6534,7 @@ run(function()
 	local Value
 	local changed, old = false
 	
-	Gravity = Cloud9.Categories.World:CreateModule({
+	Gravity = vape.Categories.World:CreateModule({
 		Name = 'Gravity',
 		Function = function(callback)
 			if callback then
@@ -6591,7 +6592,7 @@ end)
 run(function()
 	local Parkour
 	
-	Parkour = Cloud9.Categories.World:CreateModule({
+	Parkour = vape.Categories.World:CreateModule({
 		Name = 'Parkour',
 		Function = function(callback)
 			if callback then 
@@ -6616,7 +6617,7 @@ run(function()
 	rayCheck.RespectCanCollide = true
 	local module, old
 	
-	Cloud9.Categories.World:CreateModule({
+	vape.Categories.World:CreateModule({
 		Name = 'SafeWalk',
 		Function = function(callback)
 			if callback then
@@ -6666,7 +6667,7 @@ run(function()
 		end
 	end
 	
-	Xray = Cloud9.Categories.World:CreateModule({
+	Xray = vape.Categories.World:CreateModule({
 		Name = 'Xray',
 		Function = function(callback)
 			if callback then
@@ -6733,16 +6734,16 @@ run(function()
 		end
 	end
 	
-	MurderMystery = Cloud9.Categories.Minigames:CreateModule({
+	MurderMystery = vape.Categories.Minigames:CreateModule({
 		Name = 'MurderMystery',
 		Function = function(callback)
 			if callback then
 				oldtargetable, oldgetcolor = entitylib.targetCheck, entitylib.getEntityColor
 				entitylib.getEntityColor = function(ent)
 					ent = ent.Player
-					if not (ent and Cloud9.Categories.Main.Options['Use team color'].Enabled) then return end
+					if not (ent and vape.Categories.Main.Options['Use team color'].Enabled) then return end
 					if isFriend(ent, true) then
-						return Color3.fromHSV(Cloud9.Categories.Friends.Options['Friends color'].Hue, Cloud9.Categories.Friends.Options['Friends color'].Sat, Cloud9.Categories.Friends.Options['Friends color'].Value)
+						return Color3.fromHSV(vape.Categories.Friends.Options['Friends color'].Hue, vape.Categories.Friends.Options['Friends color'].Sat, vape.Categories.Friends.Options['Friends color'].Value)
 					end
 					return murderer == ent and Color3.new(1, 0.3, 0.3) or sheriff == ent and Color3.new(0, 0.5, 1) or nil
 				end
@@ -6827,7 +6828,7 @@ run(function()
 		end
 	end
 	
-	Atmosphere = Cloud9.Legit:CreateModule({
+	Atmosphere = vape.Legit:CreateModule({
 		Name = 'Atmosphere',
 		Function = function(callback)
 			if callback then
@@ -6920,7 +6921,7 @@ run(function()
 	local FadeOut
 	local trail, point, point2
 	
-	Breadcrumbs = Cloud9.Legit:CreateModule({
+	Breadcrumbs = vape.Legit:CreateModule({
 		Name = 'Breadcrumbs',
 		Function = function(callback)
 			if callback then
@@ -7037,7 +7038,7 @@ run(function()
 		motor.Parent = part
 	end
 	
-	Cape = Cloud9.Legit:CreateModule({
+	Cape = vape.Legit:CreateModule({
 		Name = 'Cape',
 		Function = function(callback)
 			if callback then
@@ -7104,11 +7105,11 @@ run(function()
 	local Color
 	local hat
 	
-	ChinaHat = Cloud9.Legit:CreateModule({
+	ChinaHat = vape.Legit:CreateModule({
 		Name = 'China Hat',
 		Function = function(callback)
 			if callback then
-				if Cloud9.ThreadFix then
+				if vape.ThreadFix then
 					setthreadidentity(8)
 				end
 				hat = Instance.new('MeshPart')
@@ -7183,7 +7184,7 @@ run(function()
 	local TwentyFourHour
 	local label
 	
-	Clock = Cloud9.Legit:CreateModule({
+	Clock = vape.Legit:CreateModule({
 		Name = 'Clock',
 		Function = function(callback)
 			if callback then
@@ -7366,7 +7367,7 @@ run(function()
 		end
 	end
 	
-	Disguise = Cloud9.Legit:CreateModule({
+	Disguise = vape.Legit:CreateModule({
 		Name = 'Disguise',
 		Function = function(callback)
 			if callback then
@@ -7405,7 +7406,7 @@ run(function()
 	local Value
 	local oldfov
 	
-	FOV = Cloud9.Legit:CreateModule({
+	FOV = vape.Legit:CreateModule({
 		Name = 'FOV',
 		Function = function(callback)
 			if callback then
@@ -7435,7 +7436,7 @@ run(function()
 	local FPS
 	local label
 	
-	FPS = Cloud9.Legit:CreateModule({
+	FPS = vape.Legit:CreateModule({
 		Name = 'FPS',
 		Function = function(callback)
 			if callback then
@@ -7523,7 +7524,7 @@ run(function()
 		keys[keybutton] = {Key = key}
 	end
 	
-	Keystrokes = Cloud9.Legit:CreateModule({
+	Keystrokes = vape.Legit:CreateModule({
 		Name = 'Keystrokes',
 		Function = function(callback)
 			if callback then
@@ -7628,7 +7629,7 @@ run(function()
 	local Memory
 	local label
 	
-	Memory = Cloud9.Legit:CreateModule({
+	Memory = vape.Legit:CreateModule({
 		Name = 'Memory',
 		Function = function(callback)
 			if callback then
@@ -7675,7 +7676,7 @@ run(function()
 	local Ping
 	local label
 	
-	Ping = Cloud9.Legit:CreateModule({
+	Ping = vape.Legit:CreateModule({
 		Name = 'Ping',
 		Function = function(callback)
 			if callback then
@@ -7765,7 +7766,7 @@ run(function()
 		end
 	end
 	
-	SongBeats = Cloud9.Legit:CreateModule({
+	SongBeats = vape.Legit:CreateModule({
 		Name = 'Song Beats',
 		Function = function(callback)
 			if callback then
@@ -7845,7 +7846,7 @@ run(function()
 	local Speedmeter
 	local label
 	
-	Speedmeter = Cloud9.Legit:CreateModule({
+	Speedmeter = vape.Legit:CreateModule({
 		Name = 'Speedmeter',
 		Function = function(callback)
 			if callback then
@@ -7895,7 +7896,7 @@ run(function()
 	local Value
 	local old
 	
-	TimeChanger = Cloud9.Legit:CreateModule({
+	TimeChanger = vape.Legit:CreateModule({
 		Name = 'Time Changer',
 		Function = function(callback)
 			if callback then
