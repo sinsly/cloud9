@@ -6456,316 +6456,6 @@ run(function()
 	})
 end)
 	
-run(function()
-	local Freecam
-	local Value
-	local randomkey, module, old = httpService:GenerateGUID(false)
-	
-	Freecam = vape.Categories.World:CreateModule({
-		Name = 'Freecam',
-		Function = function(callback)
-			if callback then
-				repeat
-					task.wait(0.1)
-					for _, v in getconnections(gameCamera:GetPropertyChangedSignal('CameraType')) do
-						if v.Function then
-							module = debug.getupvalue(v.Function, 1)
-						end
-					end
-				until module or not Freecam.Enabled
-	
-				if module and module.activeCameraController and Freecam.Enabled then
-					old = module.activeCameraController.GetSubjectPosition
-					local camPos = old(module.activeCameraController) or Vector3.zero
-					module.activeCameraController.GetSubjectPosition = function()
-						return camPos
-					end
-	
-					Freecam:Clean(runService.PreSimulation:Connect(function(dt)
-						if not inputService:GetFocusedTextBox() then
-							local forward = (inputService:IsKeyDown(Enum.KeyCode.W) and -1 or 0) + (inputService:IsKeyDown(Enum.KeyCode.S) and 1 or 0)
-							local side = (inputService:IsKeyDown(Enum.KeyCode.A) and -1 or 0) + (inputService:IsKeyDown(Enum.KeyCode.D) and 1 or 0)
-							local up = (inputService:IsKeyDown(Enum.KeyCode.Q) and -1 or 0) + (inputService:IsKeyDown(Enum.KeyCode.E) and 1 or 0)
-							dt = dt * (inputService:IsKeyDown(Enum.KeyCode.LeftShift) and 0.25 or 1)
-							camPos = (CFrame.lookAlong(camPos, gameCamera.CFrame.LookVector) * CFrame.new(Vector3.new(side, up, forward) * (Value.Value * dt))).Position
-						end
-					end))
-	
-					contextService:BindActionAtPriority('FreecamKeyboard'..randomkey, function()
-						return Enum.ContextActionResult.Sink
-					end, false, Enum.ContextActionPriority.High.Value,
-						Enum.KeyCode.W,
-						Enum.KeyCode.A,
-						Enum.KeyCode.S,
-						Enum.KeyCode.D,
-						Enum.KeyCode.E,
-						Enum.KeyCode.Q,
-						Enum.KeyCode.Up,
-						Enum.KeyCode.Down
-					)
-				end
-			else
-				pcall(function()
-					contextService:UnbindAction('FreecamKeyboard'..randomkey)
-				end)
-				if module and old then
-					module.activeCameraController.GetSubjectPosition = old
-					module = nil
-					old = nil
-				end
-			end
-		end,
-		Tooltip = 'Lets you fly and clip through walls freely\nwithout moving your player server-sided.'
-	})
-	Value = Freecam:CreateSlider({
-		Name = 'Speed',
-		Min = 1,
-		Max = 150,
-		Default = 50,
-		Suffix = function(val)
-			return val == 1 and 'stud' or 'studs'
-		end
-	})
-end)
-	
-run(function()
-	local Gravity
-	local Mode
-	local Value
-	local changed, old = false
-	
-	Gravity = vape.Categories.World:CreateModule({
-		Name = 'Gravity',
-		Function = function(callback)
-			if callback then
-				if Mode.Value == 'Workspace' then
-					old = workspace.Gravity
-					workspace.Gravity = Value.Value
-					Gravity:Clean(workspace:GetPropertyChangedSignal('Gravity'):Connect(function()
-						if changed then return end
-						changed = true
-						old = workspace.Gravity
-						workspace.Gravity = Value.Value
-						changed = false
-					end))
-				else
-					Gravity:Clean(runService.PreSimulation:Connect(function(dt)
-						if entitylib.isAlive and entitylib.character.Humanoid.FloorMaterial == Enum.Material.Air then
-							local root = entitylib.character.RootPart
-							if Mode.Value == 'Impulse' then
-								root:ApplyImpulse(Vector3.new(0, dt * (workspace.Gravity - Value.Value), 0) * root.AssemblyMass)
-							else
-								root.AssemblyLinearVelocity += Vector3.new(0, dt * (workspace.Gravity - Value.Value), 0)
-							end
-						end
-					end))
-				end
-			else
-				if old then
-					workspace.Gravity = old
-					old = nil
-				end
-			end
-		end,
-		Tooltip = 'Changes the rate you fall'
-	})
-	Mode = Gravity:CreateDropdown({
-		Name = 'Mode',
-		List = {'Workspace', 'Velocity', 'Impulse'},
-		Tooltip = 'Workspace - Adjusts the gravity for the entire game\nVelocity - Adjusts the local players gravity\nImpulse - Same as velocity while using forces instead'
-	})
-	Value = Gravity:CreateSlider({
-		Name = 'Gravity',
-		Min = 0,
-		Max = 192,
-		Function = function(val)
-			if Gravity.Enabled and Mode.Value == 'Workspace' then
-				changed = true
-				workspace.Gravity = val
-				changed = false
-			end
-		end,
-		Default = 192
-	})
-end)
-	
-run(function()
-	local Parkour
-	
-	Parkour = vape.Categories.World:CreateModule({
-		Name = 'Parkour',
-		Function = function(callback)
-			if callback then 
-				local oldfloor
-				Parkour:Clean(runService.RenderStepped:Connect(function()
-					if entitylib.isAlive then 
-						local material = entitylib.character.Humanoid.FloorMaterial
-						if material == Enum.Material.Air and oldfloor ~= Enum.Material.Air then 
-							entitylib.character.Humanoid.Jump = true
-						end
-						oldfloor = material
-					end
-				end))
-			end
-		end,
-		Tooltip = 'Automatically jumps after reaching the edge'
-	})
-end)
-	
-run(function()
-	local rayCheck = RaycastParams.new()
-	rayCheck.RespectCanCollide = true
-	local module, old
-	
-	vape.Categories.World:CreateModule({
-		Name = 'SafeWalk',
-		Function = function(callback)
-			if callback then
-				if not module then
-					local suc = pcall(function() 
-						module = require(lplr.PlayerScripts.PlayerModule).controls 
-					end)
-					if not suc then module = {} end
-				end
-				
-				old = module.moveFunction
-				module.moveFunction = function(self, vec, face)
-					if entitylib.isAlive then
-						rayCheck.FilterDescendantsInstances = {lplr.Character, gameCamera}
-						local root = entitylib.character.RootPart
-						local movedir = root.Position + vec
-						local ray = workspace:Raycast(movedir, Vector3.new(0, -15, 0), rayCheck)
-						if not ray then
-							local check = workspace:Blockcast(root.CFrame, Vector3.new(3, 1, 3), Vector3.new(0, -(entitylib.character.HipHeight + 1), 0), rayCheck)
-							if check then
-								vec = (check.Instance:GetClosestPointOnSurface(movedir) - root.Position) * Vector3.new(1, 0, 1)
-							end
-						end
-					end
-	
-					return old(self, vec, face)
-				end
-			else
-				if module and old then
-					module.moveFunction = old
-				end
-			end
-		end,
-		Tooltip = 'Prevents you from walking off the edge of parts'
-	})
-end)
-	
-run(function()
-	local Xray
-	local List
-	local modified = {}
-	
-	local function modifyPart(v)
-		if v:IsA('BasePart') and not table.find(List.ListEnabled, v.Name) then
-			modified[v] = true
-			v.LocalTransparencyModifier = 0.5
-		end
-	end
-	
-	Xray = vape.Categories.World:CreateModule({
-		Name = 'Xray',
-		Function = function(callback)
-			if callback then
-				Xray:Clean(workspace.DescendantAdded:Connect(modifyPart))
-				for _, v in workspace:GetDescendants() do
-					modifyPart(v)
-				end
-			else
-				for i in modified do
-					i.LocalTransparencyModifier = 0
-				end
-				table.clear(modified)
-			end
-		end,
-		Tooltip = 'Renders whitelisted parts through walls.'
-	})
-	List = Xray:CreateTextList({
-		Name = 'Part',
-		Function = function()
-			if Xray.Enabled then
-				Xray:Toggle()
-				Xray:Toggle()
-			end
-		end
-	})
-end)
-	
-run(function()
-	local MurderMystery
-	local murderer, sheriff, oldtargetable, oldgetcolor
-	
-	local function itemAdded(v, plr)
-		if v:IsA('Tool') then
-			local check = v:FindFirstChild('IsGun') and 'sheriff' or v:FindFirstChild('KnifeServer') and 'murderer' or nil
-			check = check or v.Name:lower():find('knife') and 'murderer' or v.Name:lower():find('gun') and 'sheriff' or nil
-			if check == 'murderer' and plr ~= murderer then
-				murderer = plr
-				if plr.Character then
-					entitylib.refresh()
-				end
-			elseif check == 'sheriff' and plr ~= sheriff then
-				sheriff = plr
-				if plr.Character then
-					entitylib.refresh()
-				end
-			end
-		end
-	end
-	
-	local function playerAdded(plr)
-		MurderMystery:Clean(plr.DescendantAdded:Connect(function(v)
-			itemAdded(v, plr)
-		end))
-		local pack = plr:FindFirstChildWhichIsA('Backpack')
-		if pack then
-			for _, v in pack:GetChildren() do
-				itemAdded(v, plr)
-			end
-		end
-		if plr.Character then
-			for _, v in plr.Character:GetChildren() do
-				itemAdded(v, plr)
-			end
-		end
-	end
-	
-	MurderMystery = vape.Categories.Minigames:CreateModule({
-		Name = 'MurderMystery',
-		Function = function(callback)
-			if callback then
-				oldtargetable, oldgetcolor = entitylib.targetCheck, entitylib.getEntityColor
-				entitylib.getEntityColor = function(ent)
-					ent = ent.Player
-					if not (ent and vape.Categories.Main.Options['Use team color'].Enabled) then return end
-					if isFriend(ent, true) then
-						return Color3.fromHSV(vape.Categories.Friends.Options['Friends color'].Hue, vape.Categories.Friends.Options['Friends color'].Sat, vape.Categories.Friends.Options['Friends color'].Value)
-					end
-					return murderer == ent and Color3.new(1, 0.3, 0.3) or sheriff == ent and Color3.new(0, 0.5, 1) or nil
-				end
-				entitylib.targetCheck = function(ent)
-					if ent.Player and isFriend(ent.Player) then return false end
-					if murderer == lplr then return true end
-					return murderer == ent.Player or sheriff == ent.Player
-				end
-				for _, v in playersService:GetPlayers() do
-					playerAdded(v)
-				end
-				MurderMystery:Clean(playersService.PlayerAdded:Connect(playerAdded))
-				entitylib.refresh()
-			else
-				entitylib.getEntityColor = oldgetcolor
-				entitylib.targetCheck = oldtargetable
-				entitylib.refresh()
-			end
-		end,
-		Tooltip = 'Automatic murder mystery teaming based on equipped roblox tools.'
-	})
-end)
 
 run(function()
 	local DarkDex
@@ -6869,6 +6559,98 @@ run(function()
 			else
 				cleanupRemoteSpy()
 			end
+		end
+	})
+end)
+
+run(function()
+	local Freecam
+	local Value
+	local randomkey, module, old = httpService:GenerateGUID(false)
+
+	Freecam = vape.Legit:CreateModule({
+		Name = 'Freecam',
+		Function = function(callback)
+			if callback then
+				repeat
+					task.wait(0.1)
+					for _, v in getconnections(gameCamera:GetPropertyChangedSignal('CameraType')) do
+						if v.Function then
+							module = debug.getupvalue(v.Function, 1)
+						end
+					end
+				until module or not Freecam.Enabled
+
+				if module and module.activeCameraController and Freecam.Enabled then
+					old = module.activeCameraController.GetSubjectPosition
+					local camPos = old(module.activeCameraController) or Vector3.zero
+
+					module.activeCameraController.GetSubjectPosition = function()
+						return camPos
+					end
+
+					Freecam:Clean(runService.PreSimulation:Connect(function(dt)
+						if not inputService:GetFocusedTextBox() then
+							local forward =
+								(inputService:IsKeyDown(Enum.KeyCode.W) and -1 or 0) +
+								(inputService:IsKeyDown(Enum.KeyCode.S) and 1 or 0)
+
+							local side =
+								(inputService:IsKeyDown(Enum.KeyCode.A) and -1 or 0) +
+								(inputService:IsKeyDown(Enum.KeyCode.D) and 1 or 0)
+
+							local up =
+								(inputService:IsKeyDown(Enum.KeyCode.Q) and -1 or 0) +
+								(inputService:IsKeyDown(Enum.KeyCode.E) and 1 or 0)
+
+							dt = dt * (inputService:IsKeyDown(Enum.KeyCode.LeftShift) and 0.25 or 1)
+
+							camPos = (
+								CFrame.lookAlong(camPos, gameCamera.CFrame.LookVector)
+								* CFrame.new(Vector3.new(side, up, forward) * (Value.Value * dt))
+							).Position
+						end
+					end))
+
+					contextService:BindActionAtPriority(
+						'FreecamKeyboard' .. randomkey,
+						function()
+							return Enum.ContextActionResult.Sink
+						end,
+						false,
+						Enum.ContextActionPriority.High.Value,
+						Enum.KeyCode.W,
+						Enum.KeyCode.A,
+						Enum.KeyCode.S,
+						Enum.KeyCode.D,
+						Enum.KeyCode.E,
+						Enum.KeyCode.Q,
+						Enum.KeyCode.Up,
+						Enum.KeyCode.Down
+					)
+				end
+			else
+				pcall(function()
+					contextService:UnbindAction('FreecamKeyboard' .. randomkey)
+				end)
+
+				if module and old then
+					module.activeCameraController.GetSubjectPosition = old
+					module = nil
+					old = nil
+				end
+			end
+		end,
+		Tooltip = 'Lets you fly and clip through walls freely\nwithout moving your player server-sided.'
+	})
+
+	Value = Freecam:CreateSlider({
+		Name = 'Speed',
+		Min = 1,
+		Max = 150,
+		Default = 50,
+		Suffix = function(val)
+			return val == 1 and 'stud' or 'studs'
 		end
 	})
 end)
