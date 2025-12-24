@@ -5777,26 +5777,6 @@ mainapi:CreateCategory({
 	Icon = getcustomasset('cloud9file/assets/new/rendericon.png'),
 	Size = UDim2.fromOffset(15, 14)
 })
-mainapi:CreateCategory({
-	Name = 'Utility',
-	Icon = getcustomasset('cloud9file/assets/new/utilityicon.png'),
-	Size = UDim2.fromOffset(15, 14)
-})
-mainapi:CreateCategory({
-	Name = 'World',
-	Icon = getcustomasset('cloud9file/assets/new/worldicon.png'),
-	Size = UDim2.fromOffset(14, 14)
-})
-mainapi:CreateCategory({
-	Name = 'Inventory',
-	Icon = getcustomasset('cloud9file/assets/new/inventoryicon.png'),
-	Size = UDim2.fromOffset(15, 14)
-})
-mainapi:CreateCategory({
-	Name = 'Minigames',
-	Icon = getcustomasset('cloud9file/assets/new/miniicon.png'),
-	Size = UDim2.fromOffset(19, 12)
-})
 mainapi.Categories.Main:CreateDivider('misc')
 
 --[[
@@ -6085,12 +6065,8 @@ guipane:CreateButton({
 			CombatCategory = 2,
 			BlatantCategory = 3,
 			RenderCategory = 4,
-			UtilityCategory = 5,
-			WorldCategory = 6,
-			InventoryCategory = 7,
-			MinigamesCategory = 8,
-			FriendsCategory = 9,
-			ProfilesCategory = 10
+			FriendsCategory = 5,
+			ProfilesCategory = 6
 		}
 		local categories = {}
 		for _, v in mainapi.Categories do
