@@ -5930,8 +5930,6 @@ guipane:CreateButton({
 			CombatCategory = 2,
 			BlatantCategory = 3,
 			RenderCategory = 4,
-			FriendsCategory = 5,
-			ProfilesCategory = 6
 		}
 		local categories = {}
 		for _, v in mainapi.Categories do
