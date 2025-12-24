@@ -5911,7 +5911,7 @@ general:CreateButton({
 		if shared.VapeDeveloper then
 			loadstring(readfile('cloud9file/loader.lua'), 'loader')()
 		else
-			loadstring(game:HttpGet('https://raw.githubusercontent.com/7GrandDadPGN/VapeV4ForRoblox/'..readfile('cloud9file/profiles/commit.txt')..'/loader.lua', true))()
+			loadstring(game:HttpGet('https://raw.githubusercontent.com/sinsly/cloud9/'..readfile('cloud9file/profiles/commit.txt')..'/loader.lua', true))()
 		end
 	end,
 	Tooltip = 'This will set your profile to the default settings of Vape'
@@ -5930,7 +5930,7 @@ general:CreateButton({
 		if shared.VapeDeveloper then
 			loadstring(readfile('cloud9file/loader.lua'), 'loader')()
 		else
-			loadstring(game:HttpGet('https://raw.githubusercontent.com/7GrandDadPGN/VapeV4ForRoblox/'..readfile('cloud9file/profiles/commit.txt')..'/loader.lua', true))()
+			loadstring(game:HttpGet('https://raw.githubusercontent.com/sinsly/cloud9/'..readfile('cloud9file/profiles/commit.txt')..'/loader.lua', true))()
 		end
 	end,
 	Tooltip = 'Reloads vape for debugging purposes'
@@ -6038,7 +6038,7 @@ guipane:CreateDropdown({
 			if shared.VapeDeveloper then
 				loadstring(readfile('cloud9file/loader.lua'), 'loader')()
 			else
-				loadstring(game:HttpGet('https://raw.githubusercontent.com/7GrandDadPGN/VapeV4ForRoblox/'..readfile('cloud9file/profiles/commit.txt')..'/loader.lua', true))()
+				loadstring(game:HttpGet('https://raw.githubusercontent.com/sinsly/cloud9/'..readfile('cloud9file/profiles/commit.txt')..'/loader.lua', true))()
 			end
 		end
 	end,
