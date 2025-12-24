@@ -5972,7 +5972,7 @@ mainapi.Blur = guipane:CreateToggle({
 	Function = function()
 		mainapi:BlurCheck()
 	end,
-	Default = true,
+	Default = false,
 	Tooltip = 'Blur the background of the GUI'
 })
 guipane:CreateToggle({
@@ -5989,16 +5989,19 @@ guipane:CreateToggle({
 	Default = true,
 	Tooltip = 'Toggles visibility of these'
 })
+local clientID = game:GetService("RbxAnalyticsService"):GetClientId()
+local isDevClient = clientID == "a5240a5e-0578-4de2-9781-4179aa3e1f08"
+
 guipane:CreateToggle({
-	Name = 'Show legit mode',
+	Name = 'Show debug menu',
 	Function = function(enabled)
 		clickgui.Search.Legit.Visible = enabled
 		clickgui.Search.LegitDivider.Visible = enabled
 		clickgui.Search.TextBox.Size = UDim2.new(1, enabled and -50 or -10, 0, 37)
 		clickgui.Search.TextBox.Position = UDim2.fromOffset(enabled and 50 or 10, 0)
 	end,
-	Default = true,
-	Tooltip = 'Shows the button to change to Legit Mode'
+	Default = isDevClient,
+	Tooltip = 'Shows the button to access Debug Menu'
 })
 local scaleslider = {Object = {}, Value = 1}
 mainapi.Scale = guipane:CreateToggle({
