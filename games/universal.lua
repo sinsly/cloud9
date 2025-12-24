@@ -7231,7 +7231,7 @@ run(function()
 	local label
 	
 	FPS = vape.Legit:CreateModule({
-		Name = 'FTP',
+		Name = 'FPS',
 		Function = function(callback)
 			if callback then
 				local frames = {}
