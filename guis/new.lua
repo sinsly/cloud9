@@ -5640,9 +5640,9 @@ function mainapi:Uninject()
 	mainapi.gui:Destroy()
 	table.clear(mainapi.Libraries)
 	loopClean(mainapi)
-	shared.vape = nil
-	shared.vapereload = nil
-	shared.VapeIndependent = nil
+	shared.cloud9 = nil
+	shared.cloud9reload = nil
+	shared.cloud9Independent = nil
 end
 
 gui = Instance.new('ScreenGui')
@@ -5907,8 +5907,8 @@ general:CreateButton({
 		if isfile('cloud9file/profiles/'..mainapi.Profile..mainapi.Place..'.txt') and delfile then
 			delfile('cloud9file/profiles/'..mainapi.Profile..mainapi.Place..'.txt')
 		end
-		shared.vapereload = true
-		if shared.VapeDeveloper then
+		shared.cloud9reload = true
+		if shared.cloud9Developer then
 			loadstring(readfile('cloud9file/loader.lua'), 'loader')()
 		else
 			loadstring(game:HttpGet('https://raw.githubusercontent.com/sinsly/cloud9/'..readfile('cloud9file/profiles/commit.txt')..'/loader.lua', true))()
@@ -5926,8 +5926,8 @@ general:CreateButton({
 general:CreateButton({
 	Name = 'Reinject',
 	Function = function()
-		shared.vapereload = true
-		if shared.VapeDeveloper then
+		shared.cloud9reload = true
+		if shared.cloud9Developer then
 			loadstring(readfile('cloud9file/loader.lua'), 'loader')()
 		else
 			loadstring(game:HttpGet('https://raw.githubusercontent.com/sinsly/cloud9/'..readfile('cloud9file/profiles/commit.txt')..'/loader.lua', true))()
@@ -6034,8 +6034,8 @@ guipane:CreateDropdown({
 	Function = function(val, mouse)
 		if mouse then
 			writefile('cloud9file/profiles/gui.txt', val)
-			shared.vapereload = true
-			if shared.VapeDeveloper then
+			shared.cloud9reload = true
+			if shared.cloud9Developer then
 				loadstring(readfile('cloud9file/loader.lua'), 'loader')()
 			else
 				loadstring(game:HttpGet('https://raw.githubusercontent.com/sinsly/cloud9/'..readfile('cloud9file/profiles/commit.txt')..'/loader.lua', true))()
