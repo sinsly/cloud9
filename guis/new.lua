@@ -5780,98 +5780,6 @@ mainapi:CreateCategory({
 mainapi.Categories.Main:CreateDivider('misc')
 
 --[[
-	Friends
-]]
-local friends
-local friendscolor = {
-	Hue = 1,
-	Sat = 1,
-	Value = 1
-}
-local friendssettings = {
-	Name = 'Friends',
-	Icon = getcustomasset('cloud9file/assets/new/friendstab.png'),
-	Size = UDim2.fromOffset(17, 16),
-	Placeholder = 'Roblox username',
-	Color = Color3.fromRGB(5, 134, 105),
-	Function = function()
-		friends.Update:Fire()
-		friends.ColorUpdate:Fire(friendscolor.Hue, friendscolor.Sat, friendscolor.Value)
-	end
-}
-friends = mainapi:CreateCategoryList(friendssettings)
-friends.Update = Instance.new('BindableEvent')
-friends.ColorUpdate = Instance.new('BindableEvent')
-friends:CreateToggle({
-	Name = 'Recolor visuals',
-	Darker = true,
-	Default = true,
-	Function = function()
-		friends.Update:Fire()
-		friends.ColorUpdate:Fire(friendscolor.Hue, friendscolor.Sat, friendscolor.Value)
-	end
-})
-friendscolor = friends:CreateColorSlider({
-	Name = 'Friends color',
-	Darker = true,
-	Function = function(hue, sat, val)
-		for _, v in friends.Object.Children:GetChildren() do
-			local dot = v:FindFirstChild('Dot')
-			if dot and dot.BackgroundColor3 ~= color.Light(uipallet.Main, 0.37) then
-				dot.BackgroundColor3 = Color3.fromHSV(hue, sat, val)
-				dot.Dot.BackgroundColor3 = dot.BackgroundColor3
-			end
-		end
-		friendssettings.Color = Color3.fromHSV(hue, sat, val)
-		friends.ColorUpdate:Fire(hue, sat, val)
-	end
-})
-friends:CreateToggle({
-	Name = 'Use friends',
-	Darker = true,
-	Default = true,
-	Function = function()
-		friends.Update:Fire()
-		friends.ColorUpdate:Fire(friendscolor.Hue, friendscolor.Sat, friendscolor.Value)
-	end
-})
-mainapi:Clean(friends.Update)
-mainapi:Clean(friends.ColorUpdate)
-
---[[
-	Profiles
-]]
-mainapi:CreateCategoryList({
-	Name = 'Profiles',
-	Icon = getcustomasset('cloud9file/assets/new/profilesicon.png'),
-	Size = UDim2.fromOffset(17, 10),
-	Position = UDim2.fromOffset(12, 16),
-	Placeholder = 'Type name',
-	Profiles = true
-})
-
---[[
-	Targets
-]]
-local targets
-targets = mainapi:CreateCategoryList({
-	Name = 'Targets',
-	Icon = getcustomasset('cloud9file/assets/new/friendstab.png'),
-	Size = UDim2.fromOffset(17, 16),
-	Placeholder = 'Roblox username',
-	Function = function()
-		targets.Update:Fire()
-	end
-})
-targets.Update = Instance.new('BindableEvent')
-mainapi:Clean(targets.Update)
-
-mainapi:CreateLegit()
-mainapi:CreateSearch()
-mainapi.Categories.Main:CreateOverlayBar()
-mainapi.Categories.Main:CreateSettingsDivider()
-
---[[
 	General Settings
 ]]
 
@@ -5881,27 +5789,11 @@ mainapi.MultiKeybind = general:CreateToggle({
 	Tooltip = 'Allows multiple keys to be bound to a module (eg. G + H)'
 })
 general:CreateButton({
-	Name = 'Reset current profile',
-	Function = function()
-	mainapi.Save = function() end
-		if isfile('cloud9file/profiles/'..mainapi.Profile..mainapi.Place..'.txt') and delfile then
-			delfile('cloud9file/profiles/'..mainapi.Profile..mainapi.Place..'.txt')
-		end
-		shared.cloud9reload = true
-		if shared.cloud9Developer then
-			loadstring(readfile('cloud9file/loader.lua'), 'loader')()
-		else
-			loadstring(game:HttpGet('https://raw.githubusercontent.com/sinsly/cloud9/'..readfile('cloud9file/profiles/commit.txt')..'/loader.lua', true))()
-		end
-	end,
-	Tooltip = 'This will set your profile to the default settings of Vape'
-})
-general:CreateButton({
 	Name = 'Self destruct',
 	Function = function()
 		mainapi:Uninject()
 	end,
-	Tooltip = 'Removes vape from the current game'
+	Tooltip = 'Removes cloud9 from the current game'
 })
 general:CreateButton({
 	Name = 'Reinject',
@@ -5913,35 +5805,8 @@ general:CreateButton({
 			loadstring(game:HttpGet('https://raw.githubusercontent.com/sinsly/cloud9/'..readfile('cloud9file/profiles/commit.txt')..'/loader.lua', true))()
 		end
 	end,
-	Tooltip = 'Reloads vape for debugging purposes'
+	Tooltip = 'Reloads cloud9 for debugging purposes'
 })
-
---[[
-	Module Settings
-]]
-
-local modules = mainapi.Categories.Main:CreateSettingsPane({Name = 'Modules'})
-modules:CreateToggle({
-	Name = 'Teams by server',
-	Tooltip = 'Ignore players on your team designated by the server',
-	Default = true,
-	Function = function()
-		if mainapi.Libraries.entity and mainapi.Libraries.entity.Running then
-			mainapi.Libraries.entity.refresh()
-		end
-	end
-})
-modules:CreateToggle({
-	Name = 'Use team color',
-	Tooltip = 'Uses the TeamColor property on players for render modules',
-	Default = true,
-	Function = function()
-		if mainapi.Libraries.entity and mainapi.Libraries.entity.Running then
-			mainapi.Libraries.entity.refresh()
-		end
-	end
-})
-
 --[[
 	GUI Settings
 ]]
