@@ -5908,554 +5908,7 @@ run(function()
 	})
 	
 end)
-	
-run(function()
-	local AnimationPlayer
-	local IDBox
-	local Priority
-	local Speed
-	local anim, animobject
-	
-	local function playAnimation(char)
-		local animcheck = anim
-		if animcheck then
-			anim = nil
-			animcheck:Stop()
-		end
-	
-		local suc, res = pcall(function()
-			anim = char.Humanoid.Animator:LoadAnimation(animobject)
-		end)
-	
-		if suc then
-			local currentanim = anim
-			anim.Priority = Enum.AnimationPriority[Priority.Value]
-			anim:Play()
-			anim:AdjustSpeed(Speed.Value)
-			AnimationPlayer:Clean(anim.Stopped:Connect(function()
-				if currentanim == anim then
-					anim:Play()
-				end
-			end))
-		else
-			notif('AnimationPlayer', 'failed to load anim : '..(res or 'invalid animation id'), 5, 'warning')
-		end
-	end
-	
-	AnimationPlayer = vape.Categories.Utility:CreateModule({
-		Name = 'AnimationPlayer',
-		Function = function(callback)
-			if callback then
-				animobject = Instance.new('Animation')
-				local suc, id = pcall(function()
-					return string.match(game:GetObjects('rbxassetid://'..IDBox.Value)[1].AnimationId, '%?id=(%d+)')
-				end)
-				animobject.AnimationId = 'rbxassetid://'..(suc and id or IDBox.Value)
-	
-				if entitylib.isAlive then
-					playAnimation(entitylib.character)
-				end
-				AnimationPlayer:Clean(entitylib.Events.LocalAdded:Connect(playAnimation))
-				AnimationPlayer:Clean(animobject)
-			else
-				if anim then
-					anim:Stop()
-				end
-			end
-		end,
-		Tooltip = 'Plays a specific animation of your choosing at a certain speed'
-	})
-	IDBox = AnimationPlayer:CreateTextBox({
-		Name = 'Animation',
-		Placeholder = 'anim (num only)',
-		Function = function(enter)
-			if enter and AnimationPlayer.Enabled then
-				AnimationPlayer:Toggle()
-				AnimationPlayer:Toggle()
-			end
-		end
-	})
-	local prio = {'Action4'}
-	for _, v in Enum.AnimationPriority:GetEnumItems() do
-		if v.Name ~= 'Action4' then
-			table.insert(prio, v.Name)
-		end
-	end
-	Priority = AnimationPlayer:CreateDropdown({
-		Name = 'Priority',
-		List = prio,
-		Function = function(val)
-			if anim then
-				anim.Priority = Enum.AnimationPriority[val]
-			end
-		end
-	})
-	Speed = AnimationPlayer:CreateSlider({
-		Name = 'Speed',
-		Function = function(val)
-			if anim then
-				anim:AdjustSpeed(val)
-			end
-		end,
-		Min = 0.1,
-		Max = 2,
-		Decimal = 10
-	})
-end)
-	
-run(function()
-	local AntiRagdoll
-	
-	AntiRagdoll = vape.Categories.Utility:CreateModule({
-		Name = 'AntiRagdoll',
-		Function = function(callback)
-			if entitylib.isAlive then
-				entitylib.character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, not callback)
-			end
-	
-			if callback then
-				AntiRagdoll:Clean(entitylib.Events.LocalAdded:Connect(function(char)
-					char.Humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-				end))
-			end
-		end,
-		Tooltip = 'Prevents you from getting knocked down in a ragdoll state'
-	})
-end)
-	
-run(function()
-	local AutoRejoin
-	local Sort
-	
-	AutoRejoin = vape.Categories.Utility:CreateModule({
-		Name = 'AutoRejoin',
-		Function = function(callback)
-			if callback then
-				local check
-				AutoRejoin:Clean(guiService.ErrorMessageChanged:Connect(function(str)
-					if (not check or guiService:GetErrorCode() ~= Enum.ConnectionError.DisconnectLuaKick) and guiService:GetErrorCode() ~= Enum.ConnectionError.DisconnectConnectionLost and not str:lower():find('ban') then
-						check = true
-						serverHop(nil, Sort.Value)
-					end
-				end))
-			end
-		end,
-		Tooltip = 'Automatically rejoins into a new server if you get disconnected / kicked'
-	})
-	Sort = AutoRejoin:CreateDropdown({
-		Name = 'Sort',
-		List = {'Descending', 'Ascending'},
-		Tooltip = 'Descending - Prefers full servers\nAscending - Prefers empty servers'
-	})
-end)
-	
-run(function()
-	local Blink
-	local Type
-	local AutoSend
-	local AutoSendLength
-	local oldphys, oldsend
-	
-	Blink = vape.Categories.Utility:CreateModule({
-		Name = 'Blink',
-		Function = function(callback)
-			if callback then
-				local teleported
-				Blink:Clean(lplr.OnTeleport:Connect(function()
-					setfflag('PhysicsSenderMaxBandwidthBps', '38760')
-					setfflag('DataSenderRate', '60')
-					teleported = true
-				end))
-	
-				repeat
-					local physicsrate, senderrate = '0', Type.Value == 'All' and '-1' or '60'
-					if AutoSend.Enabled and tick() % (AutoSendLength.Value + 0.1) > AutoSendLength.Value then
-						physicsrate, senderrate = '38760', '60'
-					end
-	
-					if physicsrate ~= oldphys or senderrate ~= oldsend then
-						setfflag('PhysicsSenderMaxBandwidthBps', physicsrate)
-						setfflag('DataSenderRate', senderrate)
-						oldphys, oldsend = physicsrate, senderrate
-					end
-	
-					task.wait(0.03)
-				until (not Blink.Enabled and not teleported)
-			else
-				if setfflag then
-					setfflag('PhysicsSenderMaxBandwidthBps', '38760')
-					setfflag('DataSenderRate', '60')
-				end
-				oldphys, oldsend = nil, nil
-			end
-		end,
-		Tooltip = 'Chokes packets until disabled.'
-	})
-	Type = Blink:CreateDropdown({
-		Name = 'Type',
-		List = {'Movement Only', 'All'},
-		Tooltip = 'Movement Only - Only chokes movement packets\nAll - Chokes remotes & movement'
-	})
-	AutoSend = Blink:CreateToggle({
-		Name = 'Auto send',
-		Function = function(callback)
-			AutoSendLength.Object.Visible = callback
-		end,
-		Tooltip = 'Automatically send packets in intervals'
-	})
-	AutoSendLength = Blink:CreateSlider({
-		Name = 'Send threshold',
-		Min = 0,
-		Max = 1,
-		Decimal = 100,
-		Darker = true,
-		Visible = false,
-		Suffix = function(val)
-			return val == 1 and 'second' or 'seconds'
-		end
-	})
-end)
-	
-run(function()
-	local ChatSpammer
-	local Lines
-	local Mode
-	local Delay
-	local Hide
-	local oldchat
-	
-	ChatSpammer = vape.Categories.Utility:CreateModule({
-		Name = 'ChatSpammer',
-		Function = function(callback)
-			if callback then
-				if textChatService.ChatVersion == Enum.ChatVersion.TextChatService then
-					if Hide.Enabled and coreGui:FindFirstChild('ExperienceChat') then
-						ChatSpammer:Clean(coreGui.ExperienceChat:FindFirstChild('RCTScrollContentView', true).ChildAdded:Connect(function(msg)
-							if msg.Name:sub(1, 2) == '0-' and msg.ContentText == 'You must wait before sending another message.' then
-								msg.Visible = false
-							end
-						end))
-					end
-				elseif replicatedStorage:FindFirstChild('DefaultChatSystemChatEvents') then
-					if Hide.Enabled then
-						oldchat = hookfunction(getconnections(replicatedStorage.DefaultChatSystemChatEvents.OnNewSystemMessage.OnClientEvent)[1].Function, function(data, ...)
-							if data.Message:find('ChatFloodDetector') then return end
-							return oldchat(data, ...)
-						end)
-					end
-				else
-					notif('ChatSpammer', 'unsupported chat', 5, 'warning')
-					ChatSpammer:Toggle()
-					return
-				end
-				
-				local ind = 1
-				repeat
-					local message = (#Lines.ListEnabled > 0 and Lines.ListEnabled[math.random(1, #Lines.ListEnabled)] or 'vxpe on top')
-					if Mode.Value == 'Order' and #Lines.ListEnabled > 0 then
-						message = Lines.ListEnabled[ind] or Lines.ListEnabled[1]
-						ind = (ind % #Lines.ListEnabled) + 1
-					end
-	
-					if textChatService.ChatVersion == Enum.ChatVersion.TextChatService then
-						textChatService.ChatInputBarConfiguration.TargetTextChannel:SendAsync(message)
-					else
-						replicatedStorage.DefaultChatSystemChatEvents.SayMessageRequest:FireServer(message, 'All')
-					end
-	
-					task.wait(Delay.Value)
-				until not ChatSpammer.Enabled
-			else
-				if oldchat then
-					hookfunction(getconnections(replicatedStorage.DefaultChatSystemChatEvents.OnNewSystemMessage.OnClientEvent)[1].Function, oldchat)
-				end
-			end
-		end,
-		Tooltip = 'Automatically types in chat'
-	})
-	Lines = ChatSpammer:CreateTextList({Name = 'Lines'})
-	Mode = ChatSpammer:CreateDropdown({
-		Name = 'Mode',
-		List = {'Random', 'Order'}
-	})
-	Delay = ChatSpammer:CreateSlider({
-		Name = 'Delay',
-		Min = 0.1,
-		Max = 10,
-		Default = 1,
-		Decimal = 10,
-		Suffix = function(val)
-			return val == 1 and 'second' or 'seconds'
-		end
-	})
-	Hide = ChatSpammer:CreateToggle({
-		Name = 'Hide Flood Message',
-		Default = true,
-		Function = function()
-			if ChatSpammer.Enabled then
-				ChatSpammer:Toggle()
-				ChatSpammer:Toggle()
-			end
-		end
-	})
-end)
-	
-run(function()
-	local Disabler
-	
-	local function characterAdded(char)
-		for _, v in getconnections(char.RootPart:GetPropertyChangedSignal('CFrame')) do
-			hookfunction(v.Function, function() end)
-		end
-		for _, v in getconnections(char.RootPart:GetPropertyChangedSignal('Velocity')) do
-			hookfunction(v.Function, function() end)
-		end
-	end
-	
-	Disabler = vape.Categories.Utility:CreateModule({
-		Name = 'Disabler',
-		Function = function(callback)
-			if callback then
-				Disabler:Clean(entitylib.Events.LocalAdded:Connect(characterAdded))
-				if entitylib.isAlive then
-					characterAdded(entitylib.character)
-				end
-			end
-		end,
-		Tooltip = 'Disables GetPropertyChangedSignal detections for movement'
-	})
-end)
-	
-run(function()
-	vape.Categories.Utility:CreateModule({
-		Name = 'Panic',
-		Function = function(callback)
-			if callback then
-				for _, v in vape.Modules do
-					if v.Enabled then
-						v:Toggle()
-					end
-				end
-			end
-		end,
-		Tooltip = 'Disables all currently enabled modules'
-	})
-end)
-	
-run(function()
-	local Rejoin
-	
-	Rejoin = vape.Categories.Utility:CreateModule({
-		Name = 'Rejoin',
-		Function = function(callback)
-			if callback then
-				notif('Rejoin', 'Rejoining...', 5)
-				Rejoin:Toggle()
-				if playersService.NumPlayers > 1 then
-					teleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId)
-				else
-					teleportService:Teleport(game.PlaceId)
-				end
-			end
-		end,
-		Tooltip = 'Rejoins the server'
-	})
-end)
-	
-run(function()
-	local ServerHop
-	local Sort
-	
-	ServerHop = vape.Categories.Utility:CreateModule({
-		Name = 'ServerHop',
-		Function = function(callback)
-			if callback then
-				ServerHop:Toggle()
-				serverHop(nil, Sort.Value)
-			end
-		end,
-		Tooltip = 'Teleports into a unique server'
-	})
-	Sort = ServerHop:CreateDropdown({
-		Name = 'Sort',
-		List = {'Descending', 'Ascending'},
-		Tooltip = 'Descending - Prefers full servers\nAscending - Prefers empty servers'
-	})
-	ServerHop:CreateButton({
-		Name = 'Rejoin Previous Server',
-		Function = function()
-			notif('ServerHop', shared.cloud9serverhopprevious and 'Rejoining previous server...' or 'Cannot find previous server', 5)
-			if shared.cloud9serverhopprevious then
-				teleportService:TeleportToPlaceInstance(game.PlaceId, shared.cloud9serverhopprevious)
-			end
-		end
-	})
-end)
-	
-run(function()
-	local StaffDetector
-	local Mode
-	local Profile
-	local Users
-	local Group
-	local Role
-	
-	local function getRole(plr, id)
-		local suc, res
-		for _ = 1, 3 do
-			suc, res = pcall(function()
-				return plr:GetRankInGroup(id)
-			end)
-			if suc then break end
-		end
-		return suc and res or 0
-	end
-	
-	local function getLowestStaffRole(roles)
-		local highest = math.huge
-		for _, v in roles do
-			local low = v.Name:lower()
-			if (low:find('admin') or low:find('mod') or low:find('dev')) and v.Rank < highest then
-				highest = v.Rank
-			end
-		end
-		return highest
-	end
-	
-	local function playerAdded(plr)
-		if not vape.Loaded then
-			repeat task.wait() until vape.Loaded
-		end
-	
-		local user = table.find(Users.ListEnabled, tostring(plr.UserId))
-		if user or getRole(plr, tonumber(Group.Value) or 0) >= (tonumber(Role.Value) or 1) then
-			notif('StaffDetector', 'Staff Detected ('..(user and 'blacklisted_user' or 'staff_role')..'): '..plr.Name, 60, 'alert')
-			whitelist.customtags[plr.Name] = {{text = 'GAME STAFF', color = Color3.new(1, 0, 0)}}
-	
-			if Mode.Value == 'Uninject' then
-				task.spawn(function()
-					vape:Uninject()
-				end)
-				game:GetService('StarterGui'):SetCore('SendNotification', {
-					Title = 'StaffDetector',
-					Text = 'Staff Detected\n'..plr.Name,
-					Duration = 60,
-				})
-			elseif Mode.Value == 'ServerHop' then
-				serverHop()
-			elseif Mode.Value == 'Profile' then
-				vape.Save = function() end
-				if vape.Profile ~= Profile.Value then
-					vape.Profile = Profile.Value
-					vape:Load(true, Profile.Value)
-				end
-			elseif Mode.Value == 'AutoConfig' then
-				vape.Save = function() end
-				for _, v in vape.Modules do
-					if v.Enabled then
-						v:Toggle()
-					end
-				end
-			end
-		end
-	end
-	
-	StaffDetector = vape.Categories.Utility:CreateModule({
-		Name = 'StaffDetector',
-		Function = function(callback)
-			if callback then
-				if Group.Value == '' or Role.Value == '' then
-					local placeinfo = {Creator = {CreatorTargetId = tonumber(Group.Value)}}
-					if Group.Value == '' then
-						placeinfo = marketplaceService:GetProductInfo(game.PlaceId)
-						if placeinfo.Creator.CreatorType ~= 'Group' then
-							local desc = placeinfo.Description:split('\n')
-							for _, str in desc do
-								local _, begin = str:find('roblox.com/groups/')
-								if begin then
-									local endof = str:find('/', begin + 1)
-									placeinfo = {Creator = {
-										CreatorType = 'Group',
-										CreatorTargetId = str:sub(begin + 1, endof - 1)
-									}}
-								end
-							end
-						end
-	
-						if placeinfo.Creator.CreatorType ~= 'Group' then
-							notif('StaffDetector', 'Automatic Setup Failed (no group detected)', 60, 'warning')
-							return
-						end
-					end
-	
-					local groupinfo = groupService:GetGroupInfoAsync(placeinfo.Creator.CreatorTargetId)
-					Group:SetValue(placeinfo.Creator.CreatorTargetId)
-					Role:SetValue(getLowestStaffRole(groupinfo.Roles))
-				end
-	
-				if Group.Value == '' or Role.Value == '' then
-					return
-				end
-	
-				StaffDetector:Clean(playersService.PlayerAdded:Connect(playerAdded))
-				for _, v in playersService:GetPlayers() do
-					task.spawn(playerAdded, v)
-				end
-			end
-		end,
-		Tooltip = 'Detects people with a staff rank ingame'
-	})
-	Mode = StaffDetector:CreateDropdown({
-		Name = 'Mode',
-		List = {'Uninject', 'ServerHop', 'Profile', 'AutoConfig', 'Notify'},
-		Function = function(val)
-			if Profile.Object then
-				Profile.Object.Visible = val == 'Profile'
-			end
-		end
-	})
-	Profile = StaffDetector:CreateTextBox({
-		Name = 'Profile',
-		Default = 'default',
-		Darker = true,
-		Visible = false
-	})
-	Users = StaffDetector:CreateTextList({
-		Name = 'Users',
-		Placeholder = 'player (userid)'
-	})
-	Group = StaffDetector:CreateTextBox({
-		Name = 'Group',
-		Placeholder = 'Group Id'
-	})
-	Role = StaffDetector:CreateTextBox({
-		Name = 'Role',
-		Placeholder = 'Role Rank'
-	})
-end)
-	
-run(function()
-	local connections = {}
-	
-	vape.Categories.World:CreateModule({
-		Name = 'Anti-AFK',
-		Function = function(callback)
-			if callback then
-				for _, v in getconnections(lplr.Idled) do
-					table.insert(connections, v)
-					v:Disable()
-				end
-			else
-				for _, v in connections do
-					v:Enable()
-				end
-				table.clear(connections)
-			end
-		end,
-		Tooltip = 'Lets you stay ingame without getting kicked'
-	})
-end)
-	
+
 
 run(function()
 	local DarkDex
@@ -6655,3 +6108,82 @@ run(function()
 	})
 end)
 
+-- Anti-AFK
+run(function()
+	local connections = {}
+
+	vape.Legit:CreateModule({
+		Name = 'Anti-AFK',
+		Tooltip = 'Lets you stay ingame without getting kicked',
+		Function = function(callback)
+			if callback then
+				for _, v in ipairs(getconnections(lplr.Idled)) do
+					table.insert(connections, v)
+					v:Disable()
+				end
+			else
+				for _, v in ipairs(connections) do
+					v:Enable()
+				end
+				table.clear(connections)
+			end
+		end
+	})
+end)
+
+-- Rejoin
+run(function()
+	local Rejoin
+
+	Rejoin = vape.Legit:CreateModule({
+		Name = 'Rejoin',
+		Tooltip = 'Rejoins the server',
+		Function = function(callback)
+			if callback then
+				notif('Rejoin', 'Rejoining...', 5)
+				Rejoin:Toggle()
+				if playersService.NumPlayers > 1 then
+					teleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId)
+				else
+					teleportService:Teleport(game.PlaceId)
+				end
+			end
+		end
+	})
+end)
+
+-- ServerHop
+run(function()
+	local ServerHop, Sort
+
+	ServerHop = vape.Legit:CreateModule({
+		Name = 'ServerHop',
+		Tooltip = 'Teleports into a unique server',
+		Function = function(callback)
+			if callback then
+				ServerHop:Toggle()
+				serverHop(nil, Sort.Value)
+			end
+		end
+	})
+
+	Sort = ServerHop:CreateDropdown({
+		Name = 'Sort',
+		List = {'Descending', 'Ascending'},
+		Tooltip = 'Descending - Prefers full servers\nAscending - Prefers empty servers'
+	})
+
+	ServerHop:CreateButton({
+		Name = 'Rejoin Previous Server',
+		Function = function()
+			notif(
+				'ServerHop',
+				shared.cloud9serverhopprevious and 'Rejoining previous server...' or 'Cannot find previous server',
+				5
+			)
+			if shared.cloud9serverhopprevious then
+				teleportService:TeleportToPlaceInstance(game.PlaceId, shared.cloud9serverhopprevious)
+			end
+		end
+	})
+end)
