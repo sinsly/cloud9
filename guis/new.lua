@@ -1,7 +1,7 @@
 local mainapi = {
 	Categories = {},
 	GUIColor = {
-  	  Hue = 0.65,    
+  	  Hue = 0.15,    
   	  Sat = 0.75,
   	  Value = 0.95    
 	},
