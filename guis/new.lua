@@ -5777,7 +5777,27 @@ mainapi:CreateCategory({
 	Icon = getcustomasset('cloud9file/assets/new/rendericon.png'),
 	Size = UDim2.fromOffset(15, 14)
 })
-mainapi.Categories.Main:CreateDivider('abc')
+mainapi:CreateCategory({
+	Name = 'Utility',
+	Icon = getcustomasset('cloud9file/assets/new/utilityicon.png'),
+	Size = UDim2.fromOffset(15, 14)
+})
+mainapi:CreateCategory({
+	Name = 'World',
+	Icon = getcustomasset('cloud9file/assets/new/worldicon.png'),
+	Size = UDim2.fromOffset(14, 14)
+})
+mainapi:CreateCategory({
+	Name = 'Inventory',
+	Icon = getcustomasset('cloud9file/assets/new/inventoryicon.png'),
+	Size = UDim2.fromOffset(15, 14)
+})
+mainapi:CreateCategory({
+	Name = 'Minigames',
+	Icon = getcustomasset('cloud9file/assets/new/miniicon.png'),
+	Size = UDim2.fromOffset(19, 12)
+})
+mainapi.Categories.Main:CreateDivider('misc')
 
 --[[
 	Friends
