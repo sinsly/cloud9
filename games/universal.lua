@@ -7100,13 +7100,18 @@ run(function()
 end)
 
 run(function()
-	local TestButton
+	local PrintHi
 
-	TestButton = vape.Legit:CreateButton({
+	PrintHi = vape.Legit:CreateModule({
 		Name = "Print Hi",
-		Function = function()
-			print("hi")
+		Function = function(callback)
+			if callback then
+				print("hi (enabled)")
+			else
+				print("hi (disabled)")
+			end
 		end,
-		Tooltip = "Prints hi to console"
+		Tooltip = "Prints hi when toggled on and off"
 	})
 end)
+
