@@ -879,7 +879,69 @@ run(function()
             threshold = val
         end
     })
+				-- Existing slider
+module:CreateSlider({
+    Name = "Threshold",
+    Min = 0.1,
+    Max = 1,
+    Default = threshold,
+    Decimal = 100,
+    Prefix = "ms",
+    Function = function(val)
+        threshold = val
+    end
+})
+
+-- New toggle
+module:CreateToggle({
+    Name = "Latency Check",
+    Default = true,
+    Function = function(state)
+        if state then
+			-- true logic
+        else
+			-- false logic
+        end
+    end
+})
+
+module:CreateToggle({
+    Name = "Off Dribble Reducer",
+    Default = true,
+    Function = function(state)
+        if state then
+			-- true logic
+        else
+			-- false logic
+        end
+    end
+})
+							
+module:CreateToggle({
+    Name = "Moving Shot Reducer",
+    Default = true,
+    Function = function(state)
+        if state then
+			-- true logic
+        else
+			-- false logic
+        end
+    end
+})
+
+module:CreateToggle({
+    Name = "Quick Release",
+    Default = false,
+    Function = function(state)
+        if state then
+			-- true logic
+        else
+			-- false logic
+        end
+    end
+})								
 end)
+						
 
 run(function()
 	local DarkDex
