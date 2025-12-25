@@ -916,18 +916,96 @@ module:CreateToggle({
     end
 })
 
+-- Quick Release Toggle
 module:CreateToggle({
     Name = "Quick Release",
     Default = false,
     Function = function(state)
-        if state then
-			-- true logic
-        else
-			-- false logic
+        QuickReleaseActive = state
+
+        local Players = game:GetService("Players")
+        local UIS = game:GetService("UserInputService")
+        local RunService = game:GetService("RunService")
+
+        local plr = Players.LocalPlayer
+        local char = plr.Character or plr.CharacterAdded:Wait()
+        local hum = char:WaitForChild("Humanoid")
+        local holding = false
+        local hasBall = char:FindFirstChild("Ball") ~= nil
+
+        local function safeAdjust(track, mult)
+            if not track then return end
+            task.wait(0.03)
+            if track.IsPlaying then
+                track:AdjustSpeed(mult)
+            end
         end
-    end
+
+        local function adjustAll(mult)
+            for _, t in ipairs(hum:GetPlayingAnimationTracks()) do
+                safeAdjust(t, mult)
+            end
+        end
+
+        local function update()
+            local mult = (holding and hasBall and QuickReleaseActive) and 2 or 1
+            adjustAll(mult)
+        end
+
+        -- Animate new tracks
+        hum.AnimationPlayed:Connect(function(track)
+            local mult = (holding and hasBall and QuickReleaseActive) and 2 or 1
+            safeAdjust(track, mult)
+        end)
+
+        -- Ball added/removed
+        char.ChildAdded:Connect(function(c)
+            if c.Name == "Ball" then
+                hasBall = true
+                update()
+            end
+        end)
+
+        char.ChildRemoved:Connect(function(c)
+            if c.Name == "Ball" then
+                hasBall = false
+                update()
+            end
+        end)
+
+        -- Key press detection
+        UIS.InputBegan:Connect(function(input, gp)
+            if gp then return end
+            if input.KeyCode == Enum.KeyCode.E then
+                holding = true
+                update()
+            end
+        end)
+
+        UIS.InputEnded:Connect(function(input)
+            if input.KeyCode == Enum.KeyCode.E then
+                holding = false
+                update()
+            end
+        end)
+
+        -- Handle character respawn
+        plr.CharacterAdded:Connect(function(c)
+            char = c
+            hum = char:WaitForChild("Humanoid")
+            holding = false
+            hasBall = char:FindFirstChild("Ball") ~= nil
+            adjustAll(1)
+
+            hum.AnimationPlayed:Connect(function(track)
+                local mult = (holding and hasBall and QuickReleaseActive) and 2 or 1
+                safeAdjust(track, mult)
+            end)
+        end)
+    end,
 })
 
+-- Release Speed Slider
 module:CreateSlider({
     Name = "Release Speed",
     Min = 1,
@@ -936,9 +1014,44 @@ module:CreateSlider({
     Decimal = 100,
     Suffix = "x",
     Function = function(val)
-        -- fix later
+        ReleaseSpeed = val
     end
-})								
+})
+
+-- Auto release logic
+local hasFired = false
+local Action = game:GetService("ReplicatedStorage").Remotes.Server:WaitForChild("Action")
+local bar = Character:WaitForChild("ShotMeterUI")
+local ReleaseThreshold = 0.9
+
+game:GetService("RunService").RenderStepped:Connect(function()
+    local yScale = bar.Size.Y.Scale
+
+    if yScale > ReleaseThreshold and not hasFired then
+        if getgenv().AutoRelease then
+            if QuickReleaseActive and Character:FindFirstChild("Humanoid") then
+                local hum = Character.Humanoid
+                for _, t in ipairs(hum:GetPlayingAnimationTracks()) do
+                    t:AdjustSpeed(ReleaseSpeed)
+                end
+            end
+
+            Action:FireServer({ Shoot = false, Type = "Shoot" })
+            Action:FireServer({ Action = "Jump", Jump = false })
+
+            if QuickReleaseActive and Character:FindFirstChild("Humanoid") then
+                task.defer(function()
+                    task.wait(0.1)
+                    local hum = Character.Humanoid
+                end)
+            end
+        end
+        hasFired = true
+    elseif yScale <= ReleaseThreshold then
+        hasFired = false
+    end
+end)
+					
 end)
 						
 
