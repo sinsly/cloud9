@@ -5763,7 +5763,7 @@ end))
 mainapi:CreateGUI()
 mainapi.Categories.Main:CreateDivider()
 mainapi:CreateCategory({
-	Name = 'Main',
+	Name = 'General',
 	Icon = getcustomasset('cloud9file/assets/new/combaticon.png'),
 	Size = UDim2.fromOffset(13, 14)
 })
@@ -6052,7 +6052,7 @@ guipane:CreateButton({
 	Function = function()
 		local priority = {
 			GUICategory = 1,
-			MainCategory = 2,
+			GeneralCategory = 2,
 			FriendsCategory = 3,
 			ProfilesCategory = 4
 		}
