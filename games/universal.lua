@@ -826,122 +826,36 @@ end)
 entitylib.start()
 run(function()
     local SilentAim
-    local Target
-    local Mode
-    local Range
-    local HitChance
     local FOV
-    local ShowTarget
+    local HitChance
+    local Priority
     local TriggerBot
+    local ShowTarget
+    local VisibleCheck
+    local TeamCheck
 
-    -- backend settings (your system)
-    local SilentAimSettings = getgenv().SilentAimSettings or {
-        Enabled = false,
-        TeamCheck = false,
-        VisibleCheck = true,
-        SilentAimMethod = "Raycast",
-        FOVRadius = 130,
-        FOVVisible = true,
-        ShowSilentAimTarget = true,
-        HitChance = 100,
-        MinDistance = 0,
-        MaxDistance = 400,
-        Priority = "Mouse",
-        TriggerBot = false
-    }
-    getgenv().SilentAimSettings = SilentAimSettings
-
-    -- drawing
-    local FOVCircle = Drawing.new("Circle")
-    FOVCircle.NumSides = 100
-    FOVCircle.Thickness = 1
-    FOVCircle.Filled = false
-    FOVCircle.Color = Color3.fromRGB(255,255,255)
-    FOVCircle.Transparency = 1
-
-    local Tracer = Drawing.new("Line")
-    Tracer.Thickness = 2
-    Tracer.Transparency = 1
-    Tracer.Color = Color3.fromRGB(255,0,0)
-
-    local function getClosest()
-        local closest, dist = nil, math.huge
-        local mousePos = inputService:GetMouseLocation()
-
-        for _, plr in Players:GetPlayers() do
-            if plr ~= lplr and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-                if SilentAimSettings.TeamCheck and plr.Team == lplr.Team then continue end
-                local hum = plr.Character:FindFirstChildWhichIsA("Humanoid")
-                if not hum or hum.Health <= 0 then continue end
-
-                local root = plr.Character.HumanoidRootPart
-                local screen, onScreen = gameCamera:WorldToViewportPoint(root.Position)
-                if not onScreen then continue end
-
-                local mag = (Vector2.new(screen.X, screen.Y) - mousePos).Magnitude
-                if mag > SilentAimSettings.FOVRadius then continue end
-
-                if mag < dist then
-                    dist = mag
-                    closest = plr
-                end
-            end
-        end
-        return closest
+    -- must already exist from your standalone script
+    local Settings = getgenv().SilentAimSettings
+    if not Settings then
+        warn("SilentAimSettings missing")
+        return
     end
 
     SilentAim = vape.Categories.Combat:CreateModule({
         Name = "SilentAim",
         Function = function(callback)
-            SilentAimSettings.Enabled = callback
-            FOVCircle.Visible = callback and SilentAimSettings.FOVVisible
-            Tracer.Visible = false
-
-            if callback then
-                SilentAim:Clean(runService.RenderStepped:Connect(function()
-                    local mousePos = inputService:GetMouseLocation()
-                    FOVCircle.Position = mousePos
-                    FOVCircle.Radius = SilentAimSettings.FOVRadius
-
-                    local target = getClosest()
-                    if target and target.Character then
-                        local root = target.Character:FindFirstChild("HumanoidRootPart")
-                        if root then
-                            local screen = gameCamera:WorldToViewportPoint(root.Position)
-                            Tracer.From = mousePos
-                            Tracer.To = Vector2.new(screen.X, screen.Y)
-                            Tracer.Visible = ShowTarget.Enabled
-
-                            if TriggerBot.Enabled and mouse1click then
-                                mouse1click()
-                            end
-                        end
-                    else
-                        Tracer.Visible = false
-                    end
-                end))
-            end
+            Settings.Enabled = callback
         end,
-        Tooltip = "Raycast silent aim (new backend)"
-    })
-
-    Target = SilentAim:CreateTargets({ Players = true })
-
-    Mode = SilentAim:CreateDropdown({
-        Name = "Priority",
-        List = { "Mouse", "Character" },
-        Function = function(val)
-            SilentAimSettings.Priority = val
-        end
+        Tooltip = "Standalone silent aim controller"
     })
 
     FOV = SilentAim:CreateSlider({
         Name = "FOV",
         Min = 10,
         Max = 500,
-        Default = SilentAimSettings.FOVRadius,
+        Default = Settings.FOVRadius,
         Function = function(val)
-            SilentAimSettings.FOVRadius = val
+            Settings.FOVRadius = val
         end
     })
 
@@ -949,24 +863,51 @@ run(function()
         Name = "Hit Chance",
         Min = 0,
         Max = 100,
-        Default = SilentAimSettings.HitChance,
+        Default = Settings.HitChance,
         Function = function(val)
-            SilentAimSettings.HitChance = val
+            Settings.HitChance = val
         end,
         Suffix = "%"
     })
 
-    ShowTarget = SilentAim:CreateToggle({
-        Name = "Show Target",
+    Priority = SilentAim:CreateDropdown({
+        Name = "Priority",
+        List = {"Mouse", "Character"},
+        Default = Settings.Priority,
         Function = function(val)
-            SilentAimSettings.ShowSilentAimTarget = val
+            Settings.Priority = val
         end
     })
 
     TriggerBot = SilentAim:CreateToggle({
         Name = "TriggerBot",
+        Default = Settings.TriggerBot,
         Function = function(val)
-            SilentAimSettings.TriggerBot = val
+            Settings.TriggerBot = val
+        end
+    })
+
+    ShowTarget = SilentAim:CreateToggle({
+        Name = "Show Target",
+        Default = Settings.ShowSilentAimTarget,
+        Function = function(val)
+            Settings.ShowSilentAimTarget = val
+        end
+    })
+
+    VisibleCheck = SilentAim:CreateToggle({
+        Name = "Visible Check",
+        Default = Settings.VisibleCheck,
+        Function = function(val)
+            Settings.VisibleCheck = val
+        end
+    })
+
+    TeamCheck = SilentAim:CreateToggle({
+        Name = "Team Check",
+        Default = Settings.TeamCheck,
+        Function = function(val)
+            Settings.TeamCheck = val
         end
     })
 end)
