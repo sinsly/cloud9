@@ -1,9 +1,9 @@
 local mainapi = {
 	Categories = {},
 	GUIColor = {
-  	  Hue = 0.15,    
-  	  Sat = 0.75,
-  	  Value = 0.95    
+	Hue = 0.56,
+	Sat = 0.45,
+	Value = 0.95,
 	},
 	HeldKeybinds = {},
 	Keybind = {'RightShift'},
