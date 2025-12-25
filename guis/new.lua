@@ -89,6 +89,7 @@ local getcustomassets = {
 	['cloud9file/assets/new/guisliderrain.png'] = 'rbxassetid://14368321228',
 	['cloud9file/assets/new/guiv4.png'] = 'rbxassetid://14368322199',
 	['cloud9file/assets/new/guivape.png'] = 'rbxassetid://14657521312',
+	['cloud9file/assets/new/cloudware.png'] = 'rbxassetid://14657521312', 
 	['cloud9file/assets/new/info.png'] = 'rbxassetid://14368324807',
 	['cloud9file/assets/new/inventoryicon.png'] = 'rbxassetid://14928011633',
 	['cloud9file/assets/new/legit.png'] = 'rbxassetid://14425650534',
@@ -2486,7 +2487,7 @@ function mainapi:CreateGUI()
 	logo.Size = UDim2.fromOffset(62, 18)
 	logo.Position = UDim2.fromOffset(11, 10)
 	logo.BackgroundTransparency = 1
-	logo.Image = getcustomasset('cloud9file/assets/new/guivape.png')
+	logo.Image = getcustomasset('cloud9file/assets/new/cloudware.png')
 	logo.ImageColor3 = select(3, uipallet.Main:ToHSV()) > 0.5 and uipallet.Text or Color3.new(1, 1, 1)
 	logo.Parent = window
 	local logov4 = Instance.new('ImageLabel')
