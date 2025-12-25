@@ -874,6 +874,7 @@ run(function()
         Max = 1,
         Default = threshold,
         Decimal = 100,
+		Prefix = "ms",
         Function = function(val)
             threshold = val
         end
