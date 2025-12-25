@@ -1598,6 +1598,1979 @@ run(function()
 	})
 end)
 	
+run(function()
+	local AntiFall
+	local Method
+	local Mode
+	local Material
+	local Color
+	local rayCheck = RaycastParams.new()
+	rayCheck.RespectCanCollide = true
+	local part
+	
+	AntiFall = vape.Categories.Blatant:CreateModule({
+		Name = 'AntiFall',
+		Function = function(callback)
+			if callback then
+				if Method.Value == 'Part' then
+					local debounce = tick()
+					part = Instance.new('Part')
+					part.Size = Vector3.new(10000, 1, 10000)
+					part.Transparency = 1 - Color.Opacity
+					part.Material = Enum.Material[Material.Value]
+					part.Color = Color3.fromHSV(Color.Hue, Color.Sat, Color.Value)
+					part.CanCollide = Mode.Value == 'Collide'
+					part.Anchored = true
+					part.CanQuery = false
+					part.Parent = workspace
+					AntiFall:Clean(part)
+					AntiFall:Clean(part.Touched:Connect(function(touchedpart)
+						if touchedpart.Parent == lplr.Character and entitylib.isAlive and debounce < tick() then
+							local root = entitylib.character.RootPart
+							debounce = tick() + 0.1
+							if Mode.Value == 'Velocity' then
+								root.AssemblyLinearVelocity = Vector3.new(root.AssemblyLinearVelocity.X, 100, root.AssemblyLinearVelocity.Z)
+							elseif Mode.Value == 'Impulse' then
+								root:ApplyImpulse(Vector3.new(0, (100 - root.AssemblyLinearVelocity.Y), 0) * root.AssemblyMass)
+							end
+						end
+					end))
+	
+					repeat
+						if entitylib.isAlive then
+							local root = entitylib.character.RootPart
+							rayCheck.FilterDescendantsInstances = {gameCamera, lplr.Character, part}
+							rayCheck.CollisionGroup = root.CollisionGroup
+							local ray = workspace:Raycast(root.Position, Vector3.new(0, -1000, 0), rayCheck)
+							if ray then
+								part.Position = ray.Position - Vector3.new(0, 15, 0)
+							end
+						end
+						task.wait(0.1)
+					until not AntiFall.Enabled
+				else
+					local lastpos
+					AntiFall:Clean(runService.PreSimulation:Connect(function()
+						if entitylib.isAlive then
+							local root = entitylib.character.RootPart
+							lastpos = entitylib.character.Humanoid.FloorMaterial ~= Enum.Material.Air and root.Position or lastpos
+							if (root.Position.Y + (root.Velocity.Y * 0.016)) <= (workspace.FallenPartsDestroyHeight + 10) then
+								lastpos = lastpos or Vector3.new(root.Position.X, (workspace.FallenPartsDestroyHeight + 20), root.Position.Z)
+								root.CFrame += (lastpos - root.Position)
+								root.Velocity *= Vector3.new(1, 0, 1)
+							end
+						end
+					end))
+				end
+			end
+		end,
+		Tooltip = 'Help\'s you with your Parkinson\'s\nPrevents you from falling into the void.'
+	})
+	Method = AntiFall:CreateDropdown({
+		Name = 'Method',
+		List = {'Part', 'Classic'},
+		Function = function(val)
+			if Mode.Object then
+				Mode.Object.Visible = val == 'Part'
+				Material.Object.Visible = val == 'Part'
+				Color.Object.Visible = val == 'Part'
+			end
+			if AntiFall.Enabled then
+				AntiFall:Toggle()
+				AntiFall:Toggle()
+			end
+		end,
+		Tooltip = 'Part - Moves a part under you that does various methods to stop you from falling\nClassic - Teleports you out of the void after reaching the part destroy plane'
+	})
+	Mode = AntiFall:CreateDropdown({
+		Name = 'Move Mode',
+		List = {'Impulse', 'Velocity', 'Collide'},
+		Darker = true,
+		Function = function(val)
+			if part then
+				part.CanCollide = val == 'Collide'
+			end
+		end,
+		Tooltip = 'Velocity - Launches you upward after touching\nCollide - Allows you to walk on the part'
+	})
+	local materials = {'ForceField'}
+	for _, v in Enum.Material:GetEnumItems() do
+		if v.Name ~= 'ForceField' then
+			table.insert(materials, v.Name)
+		end
+	end
+	Material = AntiFall:CreateDropdown({
+		Name = 'Material',
+		List = materials,
+		Darker = true,
+		Function = function(val)
+			if part then
+				part.Material = Enum.Material[val]
+			end
+		end
+	})
+	Color = AntiFall:CreateColorSlider({
+		Name = 'Color',
+		DefaultOpacity = 0.5,
+		Darker = true,
+		Function = function(h, s, v, o)
+			if part then
+				part.Color = Color3.fromHSV(h, s, v)
+				part.Transparency = 1 - o
+			end
+		end
+	})
+end)
+	
+local Fly
+local LongJump
+run(function()
+	local Options = {TPTiming = tick()}
+	local Mode
+	local FloatMode
+	local State
+	local MoveMethod
+	local Keys
+	local VerticalValue
+	local BounceLength
+	local BounceDelay
+	local FloatTPGround
+	local FloatTPAir
+	local CustomProperties
+	local WallCheck
+	local PlatformStanding
+	local Platform, YLevel, OldYLevel
+	local w, s, a, d, up, down = 0, 0, 0, 0, 0, 0
+	local rayCheck = RaycastParams.new()
+	rayCheck.RespectCanCollide = true
+	Options.rayCheck = rayCheck
+
+	local Functions
+	Functions = {
+		Velocity = function()
+			entitylib.character.RootPart.Velocity = (entitylib.character.RootPart.Velocity * Vector3.new(1, 0, 1)) + Vector3.new(0, 2.25 + ((up + down) * VerticalValue.Value), 0)
+		end,
+		Impulse = function(options, moveDirection)
+			local root = entitylib.character.RootPart
+			local diff = (Vector3.new(0, 2.25 + ((up + down) * VerticalValue.Value), 0) - root.AssemblyLinearVelocity) * Vector3.new(0, 1, 0)
+			if diff.Magnitude > 2 then
+				root:ApplyImpulse(diff * root.AssemblyMass)
+			end
+		end,
+		CFrame = function(dt)
+			local root = entitylib.character.RootPart
+			if not YLevel then
+				YLevel = root.Position.Y
+			end
+			YLevel = YLevel + ((up + down) * VerticalValue.Value * dt)
+			if WallCheck.Enabled then
+				rayCheck.FilterDescendantsInstances = {lplr.Character, gameCamera}
+				rayCheck.CollisionGroup = root.CollisionGroup
+				local ray = workspace:Raycast(root.Position, Vector3.new(0, YLevel - root.Position.Y, 0), rayCheck)
+				if ray then
+					YLevel = ray.Position.Y + entitylib.character.HipHeight
+				end
+			end
+			root.Velocity *= Vector3.new(1, 0, 1)
+			root.CFrame += Vector3.new(0, YLevel - root.Position.Y, 0)
+		end,
+		Bounce = function()
+			Functions.Velocity()
+			entitylib.character.RootPart.Velocity += Vector3.new(0, ((tick() % BounceDelay.Value) / BounceDelay.Value > 0.5 and 1 or -1) * BounceLength.Value, 0)
+		end,
+		Floor = function()
+			Platform.CFrame = down ~= 0 and CFrame.identity or entitylib.character.RootPart.CFrame + Vector3.new(0, -(entitylib.character.HipHeight + 0.5), 0)
+		end,
+		TP = function(dt)
+			Functions.CFrame(dt)
+			if tick() % (FloatTPAir.Value + FloatTPGround.Value) > FloatTPAir.Value then
+				OldYLevel = OldYLevel or YLevel
+				rayCheck.FilterDescendantsInstances = {lplr.Character, gameCamera}
+				rayCheck.CollisionGroup = entitylib.character.RootPart.CollisionGroup
+				local ray = workspace:Raycast(entitylib.character.RootPart.Position, Vector3.new(0, -1000, 0), rayCheck)
+				if ray then
+					YLevel = ray.Position.Y + entitylib.character.HipHeight
+				end
+			else
+				if OldYLevel then
+					YLevel = OldYLevel
+					OldYLevel = nil
+				end
+			end
+		end,
+		Jump = function(dt)
+			local root = entitylib.character.RootPart
+			if not YLevel then
+				YLevel = root.Position.Y
+			end
+			YLevel = YLevel + ((up + down) * VerticalValue.Value * dt)
+			if root.Position.Y < YLevel then
+				entitylib.character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+			end
+		end
+	}
+
+	Fly = vape.Categories.Blatant:CreateModule({
+		Name = 'Fly',
+		Function = function(callback)
+			if Platform then
+				Platform.Parent = callback and gameCamera or nil
+			end
+			frictionTable.Fly = callback and CustomProperties.Enabled or nil
+			updateVelocity()
+			if callback then
+				Fly:Clean(runService.PreSimulation:Connect(function(dt)
+					if entitylib.isAlive then
+						if PlatformStanding.Enabled then
+							entitylib.character.Humanoid.PlatformStand = true
+							entitylib.character.RootPart.RotVelocity = Vector3.zero
+							entitylib.character.RootPart.CFrame = CFrame.lookAlong(entitylib.character.RootPart.CFrame.Position, gameCamera.CFrame.LookVector)
+						end
+						if State.Value ~= 'None' then
+							entitylib.character.Humanoid:ChangeState(Enum.HumanoidStateType[State.Value])
+						end
+						SpeedMethods[Mode.Value](Options, TargetStrafeVector or MoveMethod.Value == 'Direct' and calculateMoveVector(Vector3.new(a + d, 0, w + s)) or entitylib.character.Humanoid.MoveDirection, dt)
+						Functions[FloatMode.Value](dt)
+					else
+						YLevel = nil
+						OldYLevel = nil
+					end
+				end))
+
+				w, s, a, d = inputService:IsKeyDown(Enum.KeyCode.W) and -1 or 0, inputService:IsKeyDown(Enum.KeyCode.S) and 1 or 0, inputService:IsKeyDown(Enum.KeyCode.A) and -1 or 0, inputService:IsKeyDown(Enum.KeyCode.D) and 1 or 0
+				up, down = 0, 0
+				for _, v in {'InputBegan', 'InputEnded'} do
+					Fly:Clean(inputService[v]:Connect(function(input)
+						if not inputService:GetFocusedTextBox() then
+							local divided = Keys.Value:split('/')
+							if input.KeyCode == Enum.KeyCode.W then
+								w = v == 'InputBegan' and -1 or 0
+							elseif input.KeyCode == Enum.KeyCode.S then
+								s = v == 'InputBegan' and 1 or 0
+							elseif input.KeyCode == Enum.KeyCode.A then
+								a = v == 'InputBegan' and -1 or 0
+							elseif input.KeyCode == Enum.KeyCode.D then
+								d = v == 'InputBegan' and 1 or 0
+							elseif input.KeyCode == Enum.KeyCode[divided[1]] then
+								up = v == 'InputBegan' and 1 or 0
+							elseif input.KeyCode == Enum.KeyCode[divided[2]] then
+								down = v == 'InputBegan' and -1 or 0
+							end
+						end
+					end))
+				end
+				if inputService.TouchEnabled then
+					pcall(function()
+						local jumpButton = lplr.PlayerGui.TouchGui.TouchControlFrame.JumpButton
+						Fly:Clean(jumpButton:GetPropertyChangedSignal('ImageRectOffset'):Connect(function()
+							up = jumpButton.ImageRectOffset.X == 146 and 1 or 0
+						end))
+					end)
+				end
+			else
+				YLevel, OldYLevel = nil, nil
+				if entitylib.isAlive and PlatformStanding.Enabled then
+					entitylib.character.Humanoid.PlatformStand = false
+				end
+			end
+		end,
+		ExtraText = function()
+			return Mode.Value
+		end,
+		Tooltip = 'Makes you go zoom.'
+	})
+	Mode = Fly:CreateDropdown({
+		Name = 'Speed Mode',
+		List = SpeedMethodList,
+		Function = function(val)
+			WallCheck.Object.Visible = FloatMode.Value == 'CFrame' or FloatMode.Value == 'TP' or val == 'CFrame' or val == 'TP'
+			Options.TPFrequency.Object.Visible = val == 'TP'
+			Options.PulseLength.Object.Visible = val == 'Pulse'
+			Options.PulseDelay.Object.Visible = val == 'Pulse'
+			if Fly.Enabled then
+				Fly:Toggle()
+				Fly:Toggle()
+			end
+		end,
+		Tooltip = 'Velocity - Uses smooth physics based movement\nImpulse - Same as velocity while using forces instead\nCFrame - Directly adjusts the position of the root\nTP - Large teleports within intervals\nPulse - Controllable bursts of speed\nWalkSpeed - The classic mode of speed, usually detected on most games.'
+	})
+	FloatMode = Fly:CreateDropdown({
+		Name = 'Float Mode',
+		List = {'Velocity', 'Impulse', 'CFrame', 'Bounce', 'Floor', 'Jump', 'TP'},
+		Function = function(val)
+			WallCheck.Object.Visible = Mode.Value == 'CFrame' or Mode.Value == 'TP' or val == 'CFrame' or val == 'TP'
+			BounceLength.Object.Visible = val == 'Bounce'
+			BounceDelay.Object.Visible = val == 'Bounce'
+			VerticalValue.Object.Visible = val ~= 'Floor'
+			FloatTPGround.Object.Visible = val == 'TP'
+			FloatTPAir.Object.Visible = val == 'TP'
+			if Platform then
+				Platform:Destroy()
+				Platform = nil
+			end
+			if val == 'Floor' then
+				Platform = Instance.new('Part')
+				Platform.CanQuery = false
+				Platform.Anchored = true
+				Platform.Size = Vector3.one
+				Platform.Transparency = 1
+				Platform.Parent = Fly.Enabled and gameCamera or nil
+			end
+		end,
+		Tooltip = 'Velocity - Uses smooth physics based movement\nImpulse - Same as velocity while using forces instead\nCFrame - Directly adjusts the position of the root\nTP - Teleports you to the ground within intervals\nFloor - Spawns a part under you\nJump - Presses space after going below a certain Y Level\nBounce - Vertical bouncing motion'
+	})
+	local states = {'None'}
+	for _, v in Enum.HumanoidStateType:GetEnumItems() do
+		if v.Name ~= 'Dead' and v.Name ~= 'None' then
+			table.insert(states, v.Name)
+		end
+	end
+	State = Fly:CreateDropdown({
+		Name = 'Humanoid State',
+		List = states
+	})
+	MoveMethod = Fly:CreateDropdown({
+		Name = 'Move Mode',
+		List = {'MoveDirection', 'Direct'},
+		Tooltip = 'MoveDirection - Uses the games input vector for movement\nDirect - Directly calculate our own input vector'
+	})
+	Keys = Fly:CreateDropdown({
+		Name = 'Keys',
+		List = {'Space/LeftControl', 'Space/LeftShift', 'E/Q', 'Space/Q', 'ButtonA/ButtonL2'},
+		Tooltip = 'The key combination for going up & down'
+	})
+	Options.Value = Fly:CreateSlider({
+		Name = 'Speed',
+		Min = 1,
+		Max = 150,
+		Default = 50,
+		Suffix = function(val)
+			return val == 1 and 'stud' or 'studs'
+		end
+	})
+	VerticalValue = Fly:CreateSlider({
+		Name = 'Vertical Speed',
+		Min = 1,
+		Max = 150,
+		Default = 50,
+		Suffix = function(val)
+			return val == 1 and 'stud' or 'studs'
+		end
+	})
+	Options.TPFrequency = Fly:CreateSlider({
+		Name = 'TP Frequency',
+		Min = 0,
+		Max = 1,
+		Decimal = 100,
+		Darker = true,
+		Visible = false,
+		Suffix = function(val)
+			return val == 1 and 'second' or 'seconds'
+		end
+	})
+	Options.PulseLength = Fly:CreateSlider({
+		Name = 'Pulse Length',
+		Min = 0,
+		Max = 1,
+		Decimal = 100,
+		Darker = true,
+		Visible = false,
+		Suffix = function(val)
+			return val == 1 and 'second' or 'seconds'
+		end
+	})
+	Options.PulseDelay = Fly:CreateSlider({
+		Name = 'Pulse Delay',
+		Min = 0,
+		Max = 1,
+		Decimal = 100,
+		Darker = true,
+		Visible = false,
+		Suffix = function(val)
+			return val == 1 and 'second' or 'seconds'
+		end
+	})
+	BounceLength = Fly:CreateSlider({
+		Name = 'Bounce Length',
+		Min = 0,
+		Max = 30,
+		Darker = true,
+		Visible = false,
+		Suffix = function(val)
+			return val == 1 and 'stud' or 'studs'
+		end
+	})
+	BounceDelay = Fly:CreateSlider({
+		Name = 'Bounce Delay',
+		Min = 0,
+		Max = 1,
+		Decimal = 100,
+		Darker = true,
+		Visible = false,
+		Suffix = function(val)
+			return val == 1 and 'second' or 'seconds'
+		end
+	})
+	FloatTPGround = Fly:CreateSlider({
+		Name = 'Ground',
+		Min = 0,
+		Max = 1,
+		Decimal = 10,
+		Default = 0.1,
+		Darker = true,
+		Visible = false,
+		Suffix = function(val)
+			return val == 1 and 'second' or 'seconds'
+		end
+	})
+	FloatTPAir = Fly:CreateSlider({
+		Name = 'Air',
+		Min = 0,
+		Max = 5,
+		Decimal = 10,
+		Default = 2,
+		Darker = true,
+		Visible = false,
+		Suffix = function(val)
+			return val == 1 and 'second' or 'seconds'
+		end
+	})
+	WallCheck = Fly:CreateToggle({
+		Name = 'Wall Check',
+		Default = true,
+		Darker = true,
+		Visible = false
+	})
+	Options.WallCheck = WallCheck
+	PlatformStanding = Fly:CreateToggle({
+		Name = 'PlatformStand',
+		Function = function(callback)
+			if Fly.Enabled then
+				entitylib.character.Humanoid.PlatformStand = callback
+			end
+		end,
+		Tooltip = 'Forces the character to look infront of the camera'
+	})
+	CustomProperties = Fly:CreateToggle({
+		Name = 'Custom Properties',
+		Function = function()
+			if Fly.Enabled then
+				Fly:Toggle()
+				Fly:Toggle()
+			end
+		end,
+		Default = true
+	})
+end)
+	
+run(function()
+	local HighJump
+	local Mode
+	local Value
+	local AutoDisable
+	
+	local function jump()
+		local state = entitylib.isAlive and entitylib.character.Humanoid:GetState() or nil
+	
+		if state == Enum.HumanoidStateType.Running or state == Enum.HumanoidStateType.Landed then
+			local root = entitylib.character.RootPart
+	
+			if Mode.Value == 'Velocity' then
+				entitylib.character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+				root.AssemblyLinearVelocity = Vector3.new(root.AssemblyLinearVelocity.X, Value.Value, root.AssemblyLinearVelocity.Z)
+			elseif Mode.Value == 'Impulse' then
+				entitylib.character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+				task.delay(0, function()
+					root:ApplyImpulse(Vector3.new(0, Value.Value - root.AssemblyLinearVelocity.Y, 0) * root.AssemblyMass)
+				end)
+			else
+				local start = math.max(Value.Value - entitylib.character.Humanoid.JumpHeight, 0)
+				repeat
+					root.CFrame += Vector3.new(0, start * 0.016, 0)
+					start = start - (workspace.Gravity * 0.016)
+					if Mode.Value == 'CFrame' then
+						task.wait()
+					end
+				until start <= 0
+			end
+		end
+	end
+	
+	HighJump = vape.Categories.Blatant:CreateModule({
+		Name = 'HighJump',
+		Function = function(callback)
+			if callback then
+				if AutoDisable.Enabled then
+					jump()
+					HighJump:Toggle()
+				else
+					HighJump:Clean(runService.RenderStepped:Connect(function()
+						if not inputService:GetFocusedTextBox() and inputService:IsKeyDown(Enum.KeyCode.Space) then
+							jump()
+						end
+					end))
+				end
+			end
+		end,
+		ExtraText = function()
+			return Mode.Value
+		end,
+		Tooltip = 'Lets you jump higher'
+	})
+	Mode = HighJump:CreateDropdown({
+		Name = 'Mode',
+		List = {'Impulse', 'Velocity', 'CFrame', 'Instant'},
+		Tooltip = 'Velocity - Uses smooth movement to boost you upward\nImpulse - Same as velocity while using forces instead\nCFrame - Directly adjusts the position upward\nInstant - Teleports you to the peak of the jump'
+	})
+	Value = HighJump:CreateSlider({
+		Name = 'Velocity',
+		Min = 1,
+		Max = 150,
+		Default = 50,
+		Suffix = function(val)
+			return val == 1 and 'stud' or 'studs'
+		end
+	})
+	AutoDisable = HighJump:CreateToggle({
+		Name = 'Auto Disable',
+		Default = true
+	})
+end)
+	
+run(function()
+	local HitBoxes
+	local Targets
+	local TargetPart
+	local Expand
+	local modified = {}
+	
+	HitBoxes = vape.Categories.Blatant:CreateModule({
+		Name = 'HitBoxes',
+		Function = function(callback)
+			if callback then
+				repeat
+					for _, v in entitylib.List do
+						if v.Targetable then
+							if not Targets.Players.Enabled and v.Player then continue end
+							if not Targets.NPCs.Enabled and v.NPC then continue end
+							local part = v[TargetPart.Value]
+							if not modified[part] then
+								modified[part] = part.Size
+							end
+							part.Size = modified[part] + Vector3.new(Expand.Value, Expand.Value, Expand.Value)
+						end
+					end
+					task.wait()
+				until not HitBoxes.Enabled
+			else
+				for i, v in modified do
+					i.Size = v
+				end
+				table.clear(modified)
+			end
+		end,
+		Tooltip = 'Expands entities hitboxes'
+	})
+	Targets = HitBoxes:CreateTargets({Players = true})
+	TargetPart = HitBoxes:CreateDropdown({
+		Name = 'Part',
+		List = {'RootPart', 'Head'}
+	})
+	Expand = HitBoxes:CreateSlider({
+		Name = 'Expand amount',
+		Min = 0,
+		Max = 2,
+		Decimal = 10,
+		Suffix = function(val)
+			return val == 1 and 'stud' or 'studs'
+		end
+	})
+end)
+	
+run(function()
+	local Invisible
+	local clone, oldroot, hip, valid
+	local animtrack
+	local proper = true
+	
+	local function doClone()
+		if entitylib.isAlive and entitylib.character.Humanoid.Health > 0 then
+			hip = entitylib.character.Humanoid.HipHeight
+			oldroot = entitylib.character.HumanoidRootPart
+			if not lplr.Character.Parent then
+				return false
+			end
+	
+			lplr.Character.Parent = game
+			clone = oldroot:Clone()
+			clone.Parent = lplr.Character
+			oldroot.Parent = gameCamera
+			clone.CFrame = oldroot.CFrame
+	
+			lplr.Character.PrimaryPart = clone
+			entitylib.character.HumanoidRootPart = clone
+			entitylib.character.RootPart = clone
+			lplr.Character.Parent = workspace
+	
+			for _, v in lplr.Character:GetDescendants() do
+				if v:IsA('Weld') or v:IsA('Motor6D') then
+					if v.Part0 == oldroot then
+						v.Part0 = clone
+					end
+					if v.Part1 == oldroot then
+						v.Part1 = clone
+					end
+				end
+			end
+	
+			return true
+		end
+	
+		return false
+	end
+	
+	local function revertClone()
+		if not oldroot or not oldroot:IsDescendantOf(workspace) or not entitylib.isAlive then
+			return false
+		end
+	
+		lplr.Character.Parent = game
+		oldroot.Parent = lplr.Character
+		lplr.Character.PrimaryPart = oldroot
+		entitylib.character.HumanoidRootPart = oldroot
+		entitylib.character.RootPart = oldroot
+		lplr.Character.Parent = workspace
+		oldroot.CanCollide = true
+	
+		for _, v in lplr.Character:GetDescendants() do
+			if v:IsA('Weld') or v:IsA('Motor6D') then
+				if v.Part0 == clone then
+					v.Part0 = oldroot
+				end
+				if v.Part1 == clone then
+					v.Part1 = oldroot
+				end
+			end
+		end
+	
+		local oldpos = clone.CFrame
+		if clone then
+			clone:Destroy()
+			clone = nil
+		end
+	
+		oldroot.CFrame = oldpos
+		oldroot = nil
+		entitylib.character.Humanoid.HipHeight = hip or 2
+	end
+	
+	local function animationTrickery()
+		if entitylib.isAlive then
+			local anim = Instance.new('Animation')
+			anim.AnimationId = 'http://www.roblox.com/asset/?id=18537363391'
+			animtrack = entitylib.character.Humanoid.Animator:LoadAnimation(anim)
+			animtrack.Priority = Enum.AnimationPriority.Action4
+			animtrack:Play(0, 1, 0)
+			anim:Destroy()
+			animtrack.Stopped:Connect(function()
+				if Invisible.Enabled then
+					animationTrickery()
+				end
+			end)
+	
+			task.delay(0, function()
+				animtrack.TimePosition = 0.77
+				task.delay(1, function()
+					animtrack:AdjustSpeed(math.huge)
+				end)
+			end)
+		end
+	end
+	
+	Invisible = vape.Categories.Blatant:CreateModule({
+		Name = 'Invisible',
+		Function = function(callback)
+			if callback then
+				if not proper then
+					notif('Invisible', 'Broken state detected', 3, 'alert')
+					Invisible:Toggle()
+					return
+				end
+	
+				success = doClone()
+				if not success then
+					Invisible:Toggle()
+					return
+				end
+	
+				animationTrickery()
+				Invisible:Clean(runService.PreSimulation:Connect(function(dt)
+					if entitylib.isAlive and oldroot then
+						local root = entitylib.character.RootPart
+						local cf = root.CFrame - Vector3.new(0, entitylib.character.Humanoid.HipHeight + (root.Size.Y / 2) - 1, 0)
+	
+						if not isnetworkowner(oldroot) then
+							root.CFrame = oldroot.CFrame
+							root.Velocity = oldroot.Velocity
+							return
+						end
+	
+						oldroot.CFrame = cf * CFrame.Angles(math.rad(180), 0, 0)
+						oldroot.Velocity = root.Velocity
+						oldroot.CanCollide = false
+					end
+				end))
+	
+				Invisible:Clean(entitylib.Events.LocalAdded:Connect(function(char)
+					local animator = char.Humanoid:WaitForChild('Animator', 1)
+					if animator and Invisible.Enabled then
+						oldroot = nil
+						Invisible:Toggle()
+						Invisible:Toggle()
+					end
+				end))
+			else
+				if animtrack then
+					animtrack:Stop()
+					animtrack:Destroy()
+				end
+	
+				if success and clone and oldroot and proper then
+					proper = true
+					if oldroot and clone then
+						revertClone()
+					end
+				end
+			end
+		end,
+		Tooltip = 'Turns you invisible.'
+	})
+end)
+	
+run(function()
+	local Killaura
+	local Targets
+	local CPS
+	local SwingRange
+	local AttackRange
+	local AngleSlider
+	local Max
+	local Mouse
+	local Lunge
+	local BoxSwingColor
+	local BoxAttackColor
+	local ParticleTexture
+	local ParticleColor1
+	local ParticleColor2
+	local ParticleSize
+	local Face
+	local Overlay = OverlapParams.new()
+	Overlay.FilterType = Enum.RaycastFilterType.Include
+	local Particles, Boxes, AttackDelay = {}, {}, tick()
+	
+	local function getAttackData()
+		if Mouse.Enabled then
+			if not inputService:IsMouseButtonPressed(0) then return false end
+		end
+	
+		local tool = getTool()
+		return tool and tool:FindFirstChildWhichIsA('TouchTransmitter', true) or nil, tool
+	end
+	
+	Killaura = vape.Categories.Blatant:CreateModule({
+		Name = 'Killaura',
+		Function = function(callback)
+			if callback then
+				repeat
+					local interest, tool = getAttackData()
+					local attacked = {}
+					if interest then
+						local plrs = entitylib.AllPosition({
+							Range = SwingRange.Value,
+							Wallcheck = Targets.Walls.Enabled or nil,
+							Part = 'RootPart',
+							Players = Targets.Players.Enabled,
+							NPCs = Targets.NPCs.Enabled,
+							Limit = Max.Value
+						})
+	
+						if #plrs > 0 then
+							local selfpos = entitylib.character.RootPart.Position
+							local localfacing = entitylib.character.RootPart.CFrame.LookVector * Vector3.new(1, 0, 1)
+	
+							for _, v in plrs do
+								local delta = (v.RootPart.Position - selfpos)
+								local angle = math.acos(localfacing:Dot((delta * Vector3.new(1, 0, 1)).Unit))
+								if angle > (math.rad(AngleSlider.Value) / 2) then continue end
+	
+								table.insert(attacked, {
+									Entity = v,
+									Check = delta.Magnitude > AttackRange.Value and BoxSwingColor or BoxAttackColor
+								})
+								targetinfo.Targets[v] = tick() + 1
+	
+								if AttackDelay < tick() then
+									AttackDelay = tick() + (1 / CPS.GetRandomValue())
+									tool:Activate()
+								end
+	
+								if Lunge.Enabled and tool.GripUp.X == 0 then break end
+								if delta.Magnitude > AttackRange.Value then continue end
+	
+								Overlay.FilterDescendantsInstances = {v.Character}
+								for _, part in workspace:GetPartBoundsInBox(v.RootPart.CFrame, Vector3.new(4, 4, 4), Overlay) do
+									firetouchinterest(interest.Parent, part, 1)
+									firetouchinterest(interest.Parent, part, 0)
+								end
+							end
+						end
+					end
+	
+					for i, v in Boxes do
+						v.Adornee = attacked[i] and attacked[i].Entity.RootPart or nil
+						if v.Adornee then
+							v.Color3 = Color3.fromHSV(attacked[i].Check.Hue, attacked[i].Check.Sat, attacked[i].Check.Value)
+							v.Transparency = 1 - attacked[i].Check.Opacity
+						end
+					end
+	
+					for i, v in Particles do
+						v.Position = attacked[i] and attacked[i].Entity.RootPart.Position or Vector3.new(9e9, 9e9, 9e9)
+						v.Parent = attacked[i] and gameCamera or nil
+					end
+	
+					if Face.Enabled and attacked[1] then
+						local vec = attacked[1].Entity.RootPart.Position * Vector3.new(1, 0, 1)
+						entitylib.character.RootPart.CFrame = CFrame.lookAt(entitylib.character.RootPart.Position, Vector3.new(vec.X, entitylib.character.RootPart.Position.Y + 0.01, vec.Z))
+					end
+	
+					task.wait()
+				until not Killaura.Enabled
+			else
+				for _, v in Boxes do
+					v.Adornee = nil
+				end
+				for _, v in Particles do
+					v.Parent = nil
+				end
+			end
+		end,
+		Tooltip = 'Attack players around you\nwithout aiming at them.'
+	})
+	Targets = Killaura:CreateTargets({Players = true})
+	CPS = Killaura:CreateTwoSlider({
+		Name = 'Attacks per Second',
+		Min = 1,
+		Max = 20,
+		DefaultMin = 12,
+		DefaultMax = 12
+	})
+	SwingRange = Killaura:CreateSlider({
+		Name = 'Swing range',
+		Min = 1,
+		Max = 30,
+		Default = 13,
+		Suffix = function(val)
+			return val == 1 and 'stud' or 'studs'
+		end
+	})
+	AttackRange = Killaura:CreateSlider({
+		Name = 'Attack range',
+		Min = 1,
+		Max = 30,
+		Default = 13,
+		Suffix = function(val)
+			return val == 1 and 'stud' or 'studs'
+		end
+	})
+	AngleSlider = Killaura:CreateSlider({
+		Name = 'Max angle',
+		Min = 1,
+		Max = 360,
+		Default = 90
+	})
+	Max = Killaura:CreateSlider({
+		Name = 'Max targets',
+		Min = 1,
+		Max = 10,
+		Default = 10
+	})
+	Mouse = Killaura:CreateToggle({Name = 'Require mouse down'})
+	Lunge = Killaura:CreateToggle({Name = 'Sword lunge only'})
+	Killaura:CreateToggle({
+		Name = 'Show target',
+		Function = function(callback)
+			BoxSwingColor.Object.Visible = callback
+			BoxAttackColor.Object.Visible = callback
+			if callback then
+				for i = 1, 10 do
+					local box = Instance.new('BoxHandleAdornment')
+					box.Adornee = nil
+					box.AlwaysOnTop = true
+					box.Size = Vector3.new(3, 5, 3)
+					box.CFrame = CFrame.new(0, -0.5, 0)
+					box.ZIndex = 0
+					box.Parent = vape.gui
+					Boxes[i] = box
+				end
+			else
+				for _, v in Boxes do
+					v:Destroy()
+				end
+				table.clear(Boxes)
+			end
+		end
+	})
+	BoxSwingColor = Killaura:CreateColorSlider({
+		Name = 'Target Color',
+		Darker = true,
+		DefaultHue = 0.6,
+		DefaultOpacity = 0.5,
+		Visible = false
+	})
+	BoxAttackColor = Killaura:CreateColorSlider({
+		Name = 'Attack Color',
+		Darker = true,
+		DefaultOpacity = 0.5,
+		Visible = false
+	})
+	Killaura:CreateToggle({
+		Name = 'Target particles',
+		Function = function(callback)
+			ParticleTexture.Object.Visible = callback
+			ParticleColor1.Object.Visible = callback
+			ParticleColor2.Object.Visible = callback
+			ParticleSize.Object.Visible = callback
+			if callback then
+				for i = 1, 10 do
+					local part = Instance.new('Part')
+					part.Size = Vector3.new(2, 4, 2)
+					part.Anchored = true
+					part.CanCollide = false
+					part.Transparency = 1
+					part.CanQuery = false
+					part.Parent = Killaura.Enabled and gameCamera or nil
+					local particles = Instance.new('ParticleEmitter')
+					particles.Brightness = 1.5
+					particles.Size = NumberSequence.new(ParticleSize.Value)
+					particles.Shape = Enum.ParticleEmitterShape.Sphere
+					particles.Texture = ParticleTexture.Value
+					particles.Transparency = NumberSequence.new(0)
+					particles.Lifetime = NumberRange.new(0.4)
+					particles.Speed = NumberRange.new(16)
+					particles.Rate = 128
+					particles.Drag = 16
+					particles.ShapePartial = 1
+					particles.Color = ColorSequence.new({
+						ColorSequenceKeypoint.new(0, Color3.fromHSV(ParticleColor1.Hue, ParticleColor1.Sat, ParticleColor1.Value)),
+						ColorSequenceKeypoint.new(1, Color3.fromHSV(ParticleColor2.Hue, ParticleColor2.Sat, ParticleColor2.Value))
+					})
+					particles.Parent = part
+					Particles[i] = part
+				end
+			else
+				for _, v in Particles do
+					v:Destroy()
+				end
+				table.clear(Particles)
+			end
+		end
+	})
+	ParticleTexture = Killaura:CreateTextBox({
+		Name = 'Texture',
+		Default = 'rbxassetid://14736249347',
+		Function = function()
+			for _, v in Particles do
+				v.ParticleEmitter.Texture = ParticleTexture.Value
+			end
+		end,
+		Darker = true,
+		Visible = false
+	})
+	ParticleColor1 = Killaura:CreateColorSlider({
+		Name = 'Color Begin',
+		Function = function(hue, sat, val)
+			for _, v in Particles do
+				v.ParticleEmitter.Color = ColorSequence.new({
+					ColorSequenceKeypoint.new(0, Color3.fromHSV(hue, sat, val)),
+					ColorSequenceKeypoint.new(1, Color3.fromHSV(ParticleColor2.Hue, ParticleColor2.Sat, ParticleColor2.Value))
+				})
+			end
+		end,
+		Darker = true,
+		Visible = false
+	})
+	ParticleColor2 = Killaura:CreateColorSlider({
+		Name = 'Color End',
+		Function = function(hue, sat, val)
+			for _, v in Particles do
+				v.ParticleEmitter.Color = ColorSequence.new({
+					ColorSequenceKeypoint.new(0, Color3.fromHSV(ParticleColor1.Hue, ParticleColor1.Sat, ParticleColor1.Value)),
+					ColorSequenceKeypoint.new(1, Color3.fromHSV(hue, sat, val))
+				})
+			end
+		end,
+		Darker = true,
+		Visible = false
+	})
+	ParticleSize = Killaura:CreateSlider({
+		Name = 'Size',
+		Min = 0,
+		Max = 1,
+		Default = 0.2,
+		Decimal = 100,
+		Function = function(val)
+			for _, v in Particles do
+				v.ParticleEmitter.Size = NumberSequence.new(val)
+			end
+		end,
+		Darker = true,
+		Visible = false
+	})
+	Face = Killaura:CreateToggle({Name = 'Face target'})
+end)
+	
+run(function()
+	local Mode
+	local Value
+	local AutoDisable
+	
+	LongJump = vape.Categories.Blatant:CreateModule({
+		Name = 'LongJump',
+		Function = function(callback)
+			if callback then
+				local exempt = tick() + 0.1
+				LongJump:Clean(runService.PreSimulation:Connect(function(dt)
+					if entitylib.isAlive then
+						if entitylib.character.Humanoid.FloorMaterial ~= Enum.Material.Air then
+							if exempt < tick() and AutoDisable.Enabled then
+								if LongJump.Enabled then
+									LongJump:Toggle()
+								end
+							else
+								entitylib.character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+							end
+						end
+	
+						local root = entitylib.character.RootPart
+						local dir = entitylib.character.Humanoid.MoveDirection * Value.Value
+						if Mode.Value == 'Velocity' then
+							root.AssemblyLinearVelocity = dir + Vector3.new(0, root.AssemblyLinearVelocity.Y, 0)
+						elseif Mode.Value == 'Impulse' then
+							local diff = (dir - root.AssemblyLinearVelocity) * Vector3.new(1, 0, 1)
+							if diff.Magnitude > (dir == Vector3.zero and 10 or 2) then
+								root:ApplyImpulse(diff * root.AssemblyMass)
+							end
+						else
+							root.CFrame += dir * dt
+						end
+					end
+				end))
+			end
+		end,
+		ExtraText = function()
+			return Mode.Value
+		end,
+		Tooltip = 'Lets you jump farther'
+	})
+	Mode = LongJump:CreateDropdown({
+		Name = 'Mode',
+		List = {'Velocity', 'Impulse', 'CFrame'},
+		Tooltip = 'Velocity - Uses smooth physics based movement\nImpulse - Same as velocity while using forces instead\nCFrame - Directly adjusts the position of the root'
+	})
+	Value = LongJump:CreateSlider({
+		Name = 'Speed',
+		Min = 1,
+		Max = 150,
+		Default = 50,
+		Suffix = function(val)
+			return val == 1 and 'stud' or 'studs'
+		end
+	})
+	AutoDisable = LongJump:CreateToggle({
+		Name = 'Auto Disable',
+		Default = true
+	})
+end)
+	
+run(function()
+	local MouseTP
+	local Mode
+	local MovementMode
+	local Length
+	local Delay
+	local rayCheck = RaycastParams.new()
+	rayCheck.RespectCanCollide = true
+	
+	local function getWaypointInMouse()
+		local returned, distance, mouseLocation = nil, math.huge, inputService:GetMouseLocation()
+		for _, v in WaypointFolder:GetChildren() do
+			local position, vis = gameCamera:WorldToViewportPoint(v.StudsOffsetWorldSpace)
+			if not vis then continue end
+			local mag = (mouseLocation - Vector2.new(position.x, position.y)).Magnitude
+			if mag < distance then
+				returned, distance = v, mag
+			end
+		end
+		return returned
+	end
+	
+	MouseTP = vape.Categories.Blatant:CreateModule({
+		Name = 'MouseTP',
+		Function = function(callback)
+			if callback then
+				local position
+				if Mode.Value == 'Mouse' then
+					local ray = cloneref(lplr:GetMouse()).UnitRay
+					rayCheck.FilterDescendantsInstances = {lplr.Character, gameCamera}
+					ray = workspace:Raycast(ray.Origin, ray.Direction * 10000, rayCheck)
+					position = ray and ray.Position + Vector3.new(0, entitylib.character.HipHeight or 2, 0)
+				elseif Mode.Value == 'Waypoint' then
+					local waypoint = getWaypointInMouse()
+					position = waypoint and waypoint.StudsOffsetWorldSpace
+				else
+					local ent = entitylib.EntityMouse({
+						Range = math.huge,
+						Part = 'RootPart',
+						Players = true
+					})
+					position = ent and ent.RootPart.Position
+				end
+	
+				if not position then
+					notif('MouseTP', 'No position found.', 5)
+					MouseTP:Toggle()
+					return
+				end
+	
+				if MovementMode.Value ~= 'Lerp' then
+					MouseTP:Toggle()
+					if entitylib.isAlive then
+						if MovementMode.Value == 'Motor' then
+							motorMove(entitylib.character.RootPart, CFrame.lookAlong(position, entitylib.character.RootPart.CFrame.LookVector))
+						else
+							entitylib.character.RootPart.CFrame = CFrame.lookAlong(position, entitylib.character.RootPart.CFrame.LookVector)
+						end
+					end
+				else
+					MouseTP:Clean(runService.Heartbeat:Connect(function()
+						if entitylib.isAlive then
+							entitylib.character.RootPart.Velocity = Vector3.zero
+						end
+					end))
+	
+					repeat
+						if entitylib.isAlive then
+							local direction = CFrame.lookAt(entitylib.character.RootPart.Position, position).LookVector * math.min((entitylib.character.RootPart.Position - position).Magnitude, Length.Value)
+							entitylib.character.RootPart.CFrame += direction
+							if (entitylib.character.RootPart.Position - position).Magnitude < 3 and MouseTP.Enabled then
+								MouseTP:Toggle()
+							end
+						elseif MouseTP.Enabled then
+							MouseTP:Toggle()
+							notif('MouseTP', 'Character missing', 5, 'warning')
+						end
+	
+						task.wait(Delay.Value)
+					until not MouseTP.Enabled
+				end
+			end
+		end,
+		Tooltip = 'Teleports to a selected position.'
+	})
+	Mode = MouseTP:CreateDropdown({
+		Name = 'Mode',
+		List = {'Mouse', 'Player', 'Waypoint'}
+	})
+	MovementMode = MouseTP:CreateDropdown({
+		Name = 'Movement',
+		List = {'CFrame', 'Motor', 'Lerp'},
+		Function = function(val)
+			Length.Object.Visible = val == 'Lerp'
+			Delay.Object.Visible = val == 'Lerp'
+		end
+	})
+	Length = MouseTP:CreateSlider({
+		Name = 'Length',
+		Min = 0,
+		Max = 150,
+		Darker = true,
+		Visible = false,
+		Suffix = function(val)
+			return val == 1 and 'stud' or 'studs'
+		end
+	})
+	Delay = MouseTP:CreateSlider({
+		Name = 'Delay',
+		Min = 0,
+		Max = 1,
+		Decimal = 100,
+		Darker = true,
+		Visible = false,
+		Suffix = function(val)
+			return val == 1 and 'second' or 'seconds'
+		end
+	})
+end)
+	
+run(function()
+	local Mode
+	local StudLimit = {Object = {}}
+	local rayCheck = RaycastParams.new()
+	rayCheck.RespectCanCollide = true
+	local overlapCheck = OverlapParams.new()
+	overlapCheck.MaxParts = 9e9
+	local modified, fflag = {}
+	local teleported
+	
+	local function grabClosestNormal(ray)
+		local partCF, mag, closest = ray.Instance.CFrame, 0, Enum.NormalId.Top
+		for _, normal in Enum.NormalId:GetEnumItems() do
+			local dot = partCF:VectorToWorldSpace(Vector3.fromNormalId(normal)):Dot(ray.Normal)
+			if dot > mag then
+				mag, closest = dot, normal
+			end
+		end
+		return Vector3.fromNormalId(closest).X ~= 0 and 'X' or 'Z'
+	end
+	
+	local Functions = {
+		Part = function()
+			local chars = {gameCamera, lplr.Character}
+			for _, v in entitylib.List do
+				table.insert(chars, v.Character)
+			end
+			overlapCheck.FilterDescendantsInstances = chars
+	
+			local parts = workspace:GetPartBoundsInBox(entitylib.character.RootPart.CFrame + Vector3.new(0, 1, 0), entitylib.character.RootPart.Size + Vector3.new(1, entitylib.character.HipHeight, 1), overlapCheck)
+			for _, part in parts do
+				if part.CanCollide and (not Spider.Enabled or SpiderShift) then
+					modified[part] = true
+					part.CanCollide = false
+				end
+			end
+	
+			for part in modified do
+				if not table.find(parts, part) then
+					modified[part] = nil
+					part.CanCollide = true
+				end
+			end
+		end,
+		Character = function()
+			for _, part in lplr.Character:GetDescendants() do
+				if part:IsA('BasePart') and part.CanCollide and (not Spider.Enabled or SpiderShift) then
+					modified[part] = true
+					part.CanCollide = Spider.Enabled and not SpiderShift
+				end
+			end
+		end,
+		CFrame = function()
+			local chars = {gameCamera, lplr.Character}
+			for _, v in entitylib.List do
+				table.insert(chars, v.Character)
+			end
+			rayCheck.FilterDescendantsInstances = chars
+			overlapCheck.FilterDescendantsInstances = chars
+	
+			local ray = workspace:Raycast(entitylib.character.Head.CFrame.Position, entitylib.character.Humanoid.MoveDirection * 1.1, rayCheck)
+			if ray and (not Spider.Enabled or SpiderShift) then
+				local phaseDirection = grabClosestNormal(ray)
+				if ray.Instance.Size[phaseDirection] <= StudLimit.Value then
+					local root = entitylib.character.RootPart
+					local dest = root.CFrame + (ray.Normal * (-(ray.Instance.Size[phaseDirection]) - (root.Size.X / 1.5)))
+	
+					if #workspace:GetPartBoundsInBox(dest, Vector3.one, overlapCheck) <= 0 then
+						if Mode.Value == 'Motor' then
+							motorMove(root, dest)
+						else
+							root.CFrame = dest
+						end
+					end
+				end
+			end
+		end,
+		FFlag = function()
+			if teleported then return end
+			setfflag('AssemblyExtentsExpansionStudHundredth', '-10000')
+			fflag = true
+		end
+	}
+	Functions.Motor = Functions.CFrame
+	
+	Phase = vape.Categories.Blatant:CreateModule({
+		Name = 'Phase',
+		Function = function(callback)
+			if callback then
+				Phase:Clean(runService.Stepped:Connect(function()
+					if entitylib.isAlive then
+						Functions[Mode.Value]()
+					end
+				end))
+	
+				if Mode.Value == 'FFlag' then
+					Phase:Clean(lplr.OnTeleport:Connect(function()
+						teleported = true
+						setfflag('AssemblyExtentsExpansionStudHundredth', '30')
+					end))
+				end
+			else
+				if fflag then
+					setfflag('AssemblyExtentsExpansionStudHundredth', '30')
+				end
+				for part in modified do
+					part.CanCollide = true
+				end
+				table.clear(modified)
+				fflag = nil
+			end
+		end,
+		Tooltip = 'Lets you Phase/Clip through walls. (Hold shift to use Phase over spider)'
+	})
+	Mode = Phase:CreateDropdown({
+		Name = 'Mode',
+		List = {'Part', 'Character', 'CFrame', 'Motor', 'FFlag'},
+		Function = function(val)
+			StudLimit.Object.Visible = val == 'CFrame' or val == 'Motor'
+			if fflag then
+				setfflag('AssemblyExtentsExpansionStudHundredth', '30')
+			end
+			for part in modified do
+				part.CanCollide = true
+			end
+			table.clear(modified)
+			fflag = nil
+		end,
+		Tooltip = 'Part - Modifies parts collision status around you\nCharacter - Modifies the local collision status of the character\nCFrame - Teleports you past parts\nMotor - Same as CFrame with a bypass\nFFlag - Directly adjusts all physics collisions'
+	})
+	StudLimit = Phase:CreateSlider({
+		Name = 'Wall Size',
+		Min = 1,
+		Max = 20,
+		Default = 5,
+		Suffix = function(val)
+			return val == 1 and 'stud' or 'studs'
+		end,
+		Darker = true,
+		Visible = false
+	})
+end)
+	
+run(function()
+	local Speed
+	local Mode
+	local Options
+	local AutoJump
+	local AutoJumpCustom
+	local AutoJumpValue
+	local w, s, a, d = 0, 0, 0, 0
+	
+	Speed = vape.Categories.Blatant:CreateModule({
+		Name = 'Speed',
+		Function = function(callback)
+			frictionTable.Speed = callback and CustomProperties.Enabled or nil
+			updateVelocity()
+			if callback then
+				Speed:Clean(runService.PreSimulation:Connect(function(dt)
+					if entitylib.isAlive and not Fly.Enabled and not LongJump.Enabled then
+						local state = entitylib.character.Humanoid:GetState()
+						if state == Enum.HumanoidStateType.Climbing then return end
+	
+						local movevec = TargetStrafeVector or Options.MoveMethod.Value == 'Direct' and calculateMoveVector(Vector3.new(a + d, 0, w + s)) or entitylib.character.Humanoid.MoveDirection
+						SpeedMethods[Mode.Value](Options, movevec, dt)
+						if AutoJump.Enabled and entitylib.character.Humanoid.FloorMaterial ~= Enum.Material.Air and movevec ~= Vector3.zero then
+							if AutoJumpCustom.Enabled then
+								local velocity = entitylib.character.RootPart.Velocity * Vector3.new(1, 0, 1)
+								entitylib.character.RootPart.Velocity = Vector3.new(velocity.X, AutoJumpValue.Value, velocity.Z)
+							else
+								entitylib.character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+							end
+						end
+					end
+				end))
+	
+				w, s, a, d = inputService:IsKeyDown(Enum.KeyCode.W) and -1 or 0, inputService:IsKeyDown(Enum.KeyCode.S) and 1 or 0, inputService:IsKeyDown(Enum.KeyCode.A) and -1 or 0, inputService:IsKeyDown(Enum.KeyCode.D) and 1 or 0
+				for _, v in {'InputBegan', 'InputEnded'} do
+					Speed:Clean(inputService[v]:Connect(function(input)
+						if not inputService:GetFocusedTextBox() then
+							if input.KeyCode == Enum.KeyCode.W then
+								w = v == 'InputBegan' and -1 or 0
+							elseif input.KeyCode == Enum.KeyCode.S then
+								s = v == 'InputBegan' and 1 or 0
+							elseif input.KeyCode == Enum.KeyCode.A then
+								a = v == 'InputBegan' and -1 or 0
+							elseif input.KeyCode == Enum.KeyCode.D then
+								d = v == 'InputBegan' and 1 or 0
+							end
+						end
+					end))
+				end
+			else
+				if Options.WalkSpeed and entitylib.isAlive then
+					entitylib.character.Humanoid.WalkSpeed = Options.WalkSpeed
+				end
+				Options.WalkSpeed = nil
+			end
+		end,
+		ExtraText = function()
+			return Mode.Value
+		end,
+		Tooltip = 'Increases your movement with various methods.'
+	})
+	Mode = Speed:CreateDropdown({
+		Name = 'Mode',
+		List = SpeedMethodList,
+		Function = function(val)
+			Options.WallCheck.Object.Visible = val == 'CFrame' or val == 'TP'
+			Options.TPFrequency.Object.Visible = val == 'TP'
+			Options.PulseLength.Object.Visible = val == 'Pulse'
+			Options.PulseDelay.Object.Visible = val == 'Pulse'
+			if Speed.Enabled then
+				Speed:Toggle()
+				Speed:Toggle()
+			end
+		end,
+		Tooltip = 'Velocity - Uses smooth physics based movement\nImpulse - Same as velocity while using forces instead\nCFrame - Directly adjusts the position of the root\nTP - Large teleports within intervals\nPulse - Controllable bursts of speed\nWalkSpeed - The classic mode of speed, usually detected on most games.'
+	})
+	Options = {
+		MoveMethod = Speed:CreateDropdown({
+			Name = 'Move Mode',
+			List = {'MoveDirection', 'Direct'},
+			Tooltip = 'MoveDirection - Uses the games input vector for movement\nDirect - Directly calculate our own input vector'
+		}),
+		Value = Speed:CreateSlider({
+			Name = 'Speed',
+			Min = 1,
+			Max = 150,
+			Default = 50,
+			Suffix = function(val)
+				return val == 1 and 'stud' or 'studs'
+			end
+		}),
+		TPFrequency = Speed:CreateSlider({
+			Name = 'TP Frequency',
+			Min = 0,
+			Max = 1,
+			Decimal = 100,
+			Darker = true,
+			Visible = false,
+			Suffix = function(val)
+				return val == 1 and 'second' or 'seconds'
+			end
+		}),
+		PulseLength = Speed:CreateSlider({
+			Name = 'Pulse Length',
+			Min = 0,
+			Max = 1,
+			Decimal = 100,
+			Darker = true,
+			Visible = false,
+			Suffix = function(val)
+				return val == 1 and 'second' or 'seconds'
+			end
+		}),
+		PulseDelay = Speed:CreateSlider({
+			Name = 'Pulse Delay',
+			Min = 0,
+			Max = 1,
+			Decimal = 100,
+			Darker = true,
+			Visible = false,
+			Suffix = function(val)
+				return val == 1 and 'second' or 'seconds'
+			end
+		}),
+		WallCheck = Speed:CreateToggle({
+			Name = 'Wall Check',
+			Default = true,
+			Darker = true,
+			Visible = false
+		}),
+		TPTiming = tick(),
+		rayCheck = RaycastParams.new()
+	}
+	Options.rayCheck.RespectCanCollide = true
+	CustomProperties = Speed:CreateToggle({
+		Name = 'Custom Properties',
+		Function = function()
+			if Speed.Enabled then
+				Speed:Toggle()
+				Speed:Toggle()
+			end
+		end,
+		Default = true
+	})
+	AutoJump = Speed:CreateToggle({
+		Name = 'AutoJump',
+		Function = function(callback)
+			AutoJumpCustom.Object.Visible = callback
+		end
+	})
+	AutoJumpCustom = Speed:CreateToggle({
+		Name = 'Custom Jump',
+		Function = function(callback)
+			AutoJumpValue.Object.Visible = callback
+		end,
+		Tooltip = 'Allows you to adjust the jump power',
+		Darker = true,
+		Visible = false
+	})
+	AutoJumpValue = Speed:CreateSlider({
+		Name = 'Jump Power',
+		Min = 1,
+		Max = 50,
+		Default = 30,
+		Darker = true,
+		Visible = false
+	})
+end)
+	
+run(function()
+	local Mode
+	local Value
+	local State
+	local rayCheck = RaycastParams.new()
+	rayCheck.RespectCanCollide = true
+	local Active, Truss
+	
+	Spider = vape.Categories.Blatant:CreateModule({
+		Name = 'Spider',
+		Function = function(callback)
+			if callback then
+				if Truss then Truss.Parent = gameCamera end
+				Spider:Clean(runService.PreSimulation:Connect(function(dt)
+					if entitylib.isAlive then
+						local root = entitylib.character.RootPart
+						local chars = {gameCamera, lplr.Character, Truss}
+						for _, v in entitylib.List do
+							table.insert(chars, v.Character)
+						end
+						SpiderShift = inputService:IsKeyDown(Enum.KeyCode.LeftShift)
+						rayCheck.FilterDescendantsInstances = chars
+						rayCheck.CollisionGroup = root.CollisionGroup
+	
+						if Mode.Value ~= 'Part' then
+							local vec = entitylib.character.Humanoid.MoveDirection * 2.5
+							local ray = workspace:Raycast(root.Position - Vector3.new(0, entitylib.character.HipHeight - 0.5, 0), vec, rayCheck)
+							if Active and not ray then
+								root.Velocity = Vector3.new(root.Velocity.X, 0, root.Velocity.Z)
+							end
+	
+							Active = ray
+							if Active and ray.Normal.Y == 0 then
+								if not Phase.Enabled or not SpiderShift then
+									if State.Enabled then
+										entitylib.character.Humanoid:ChangeState(Enum.HumanoidStateType.Climbing)
+									end
+	
+									root.Velocity *= Vector3.new(1, 0, 1)
+									if Mode.Value == 'CFrame' then
+										root.CFrame += Vector3.new(0, Value.Value * dt, 0)
+									elseif Mode.Value == 'Impulse' then
+										root:ApplyImpulse(Vector3.new(0, Value.Value, 0) * root.AssemblyMass)
+									else
+										root.Velocity += Vector3.new(0, Value.Value, 0)
+									end
+								end
+							end
+						else
+							local ray = workspace:Raycast(root.Position - Vector3.new(0, entitylib.character.HipHeight - 0.5, 0), entitylib.character.RootPart.CFrame.LookVector * 2, rayCheck)
+							if ray and (not Phase.Enabled or not SpiderShift) then
+								Truss.Position = ray.Position - ray.Normal * 0.9 or Vector3.zero
+							else
+								Truss.Position = Vector3.zero
+							end
+						end
+					end
+				end))
+			else
+				if Truss then
+					Truss.Parent = nil
+				end
+				SpiderShift = false
+			end
+		end,
+		Tooltip = 'Lets you climb up walls. (Hold shift to use Phase over spider)'
+	})
+	Mode = Spider:CreateDropdown({
+		Name = 'Mode',
+		List = {'Velocity', 'Impulse', 'CFrame', 'Part'},
+		Function = function(val)
+			Value.Object.Visible = val ~= 'Part'
+			State.Object.Visible = val ~= 'Part'
+			if Truss then
+				Truss:Destroy()
+				Truss = nil
+			end
+			if val == 'Part' then
+				Truss = Instance.new('TrussPart')
+				Truss.Size = Vector3.new(2, 2, 2)
+				Truss.Transparency = 1
+				Truss.Anchored = true
+				Truss.Parent = Spider.Enabled and gameCamera or nil
+			end
+		end,
+		Tooltip = 'Velocity - Uses smooth movement to boost you upward\nCFrame - Directly adjusts the position upward\nPart - Positions a climbable part infront of you'
+	})
+	Value = Spider:CreateSlider({
+		Name = 'Speed',
+		Min = 0,
+		Max = 100,
+		Default = 30,
+		Darker = true,
+		Suffix = function(val)
+			return val == 1 and 'stud' or 'studs'
+		end
+	})
+	State = Spider:CreateToggle({
+		Name = 'Climb State',
+		Darker = true
+	})
+end)
+	
+run(function()
+	local SpinBot
+	local Mode
+	local XToggle
+	local YToggle
+	local ZToggle
+	local Value
+	local AngularVelocity
+	
+	SpinBot = vape.Categories.Blatant:CreateModule({
+		Name = 'SpinBot',
+		Function = function(callback)
+			if callback then
+				SpinBot:Clean(runService.PreSimulation:Connect(function()
+					if entitylib.isAlive then
+						if Mode.Value == 'RotVelocity' then
+							local originalRotVelocity = entitylib.character.RootPart.RotVelocity
+							entitylib.character.Humanoid.AutoRotate = false
+							entitylib.character.RootPart.RotVelocity = Vector3.new(XToggle.Enabled and Value.Value or originalRotVelocity.X, YToggle.Enabled and Value.Value or originalRotVelocity.Y, ZToggle.Enabled and Value.Value or originalRotVelocity.Z)
+						elseif Mode.Value == 'CFrame' then
+							local val = math.rad((tick() * (20 * Value.Value)) % 360)
+							local x, y, z = entitylib.character.RootPart.CFrame:ToOrientation()
+							entitylib.character.RootPart.CFrame = CFrame.new(entitylib.character.RootPart.Position) * CFrame.Angles(XToggle.Enabled and val or x, YToggle.Enabled and val or y, ZToggle.Enabled and val or z)
+						elseif AngularVelocity then
+							AngularVelocity.Parent = entitylib.isAlive and entitylib.character.RootPart
+							AngularVelocity.MaxTorque = Vector3.new(XToggle.Enabled and math.huge or 0, YToggle.Enabled and math.huge or 0, ZToggle.Enabled and math.huge or 0)
+							AngularVelocity.AngularVelocity = Vector3.new(Value.Value, Value.Value, Value.Value)
+						end
+					end
+				end))
+			else
+				if entitylib.isAlive and Mode.Value == 'RotVelocity' then
+					entitylib.character.Humanoid.AutoRotate = true
+				end
+				if AngularVelocity then
+					AngularVelocity.Parent = nil
+				end
+			end
+		end,
+		Tooltip = 'Makes your character spin around in circles (does not work in first person)'
+	})
+	Mode = SpinBot:CreateDropdown({
+		Name = 'Mode',
+		List = {'CFrame', 'RotVelocity', 'BodyMover'},
+		Function = function(val)
+			if AngularVelocity then
+				AngularVelocity:Destroy()
+				AngularVelocity = nil
+			end
+			AngularVelocity = val == 'BodyMover' and Instance.new('BodyAngularVelocity') or nil
+		end
+	})
+	Value = SpinBot:CreateSlider({
+		Name = 'Speed',
+		Min = 1,
+		Max = 100,
+		Default = 40
+	})
+	XToggle = SpinBot:CreateToggle({Name = 'Spin X'})
+	YToggle = SpinBot:CreateToggle({
+		Name = 'Spin Y',
+		Default = true
+	})
+	ZToggle = SpinBot:CreateToggle({Name = 'Spin Z'})
+end)
+	
+run(function()
+	local Swim
+	local terrain = cloneref(workspace:FindFirstChildWhichIsA('Terrain'))
+	local lastpos = Region3.new(Vector3.zero, Vector3.zero)
+	
+	Swim = vape.Categories.Blatant:CreateModule({
+		Name = 'Swim',
+		Function = function(callback)
+			if callback then
+				Swim:Clean(runService.PreSimulation:Connect(function(dt)
+					if entitylib.isAlive then
+						local root = entitylib.character.RootPart
+						local moving = entitylib.character.Humanoid.MoveDirection ~= Vector3.zero
+						local rootvelo = root.Velocity
+						local space = inputService:IsKeyDown(Enum.KeyCode.Space)
+	
+						if terrain then
+							local factor = (moving or space) and Vector3.new(6, 6, 6) or Vector3.new(2, 1, 2)
+							local pos = root.Position - Vector3.new(0, 1, 0)
+							local newpos = Region3.new(pos - factor, pos + factor):ExpandToGrid(4)
+							terrain:ReplaceMaterial(lastpos, 4, Enum.Material.Water, Enum.Material.Air)
+							terrain:FillRegion(newpos, 4, Enum.Material.Water)
+							lastpos = newpos
+						end
+					end
+				end))
+			else
+				if terrain and lastpos then
+					terrain:ReplaceMaterial(lastpos, 4, Enum.Material.Water, Enum.Material.Air)
+				end
+			end
+		end,
+		Tooltip = 'Lets you swim midair'
+	})
+end)
+	
+run(function()
+	local TargetStrafe
+	local Targets
+	local SearchRange
+	local StrafeRange
+	local YFactor
+	local rayCheck = RaycastParams.new()
+	rayCheck.RespectCanCollide = true
+	local module, old
+	
+	TargetStrafe = vape.Categories.Blatant:CreateModule({
+		Name = 'TargetStrafe',
+		Function = function(callback)
+			if callback then
+				if not module then
+					local suc = pcall(function() module = require(lplr.PlayerScripts.PlayerModule).controls end)
+					if not suc then
+						module = {}
+					end
+				end
+				
+				old = module.moveFunction
+				local flymod, ang, oldent = vape.Modules.Fly or {Enabled = false}
+				module.moveFunction = function(self, vec, face)
+					local wallcheck = Targets.Walls.Enabled
+					local ent = not inputService:IsKeyDown(Enum.KeyCode.S) and entitylib.EntityPosition({
+						Range = SearchRange.Value,
+						Wallcheck = wallcheck,
+						Part = 'RootPart',
+						Players = Targets.Players.Enabled,
+						NPCs = Targets.NPCs.Enabled
+					})
+	
+					if ent then
+						local root, targetPos = entitylib.character.RootPart, ent.RootPart.Position
+						rayCheck.FilterDescendantsInstances = {lplr.Character, gameCamera, ent.Character}
+						rayCheck.CollisionGroup = root.CollisionGroup
+	
+						if flymod.Enabled or workspace:Raycast(targetPos, Vector3.new(0, -70, 0), rayCheck) then
+							local factor, localPosition = 0, root.Position
+							if ent ~= oldent then
+								ang = math.deg(select(2, CFrame.lookAt(targetPos, localPosition):ToEulerAnglesYXZ()))
+							end
+							local yFactor = math.abs(localPosition.Y - targetPos.Y) * (YFactor.Value / 100)
+							local entityPos = Vector3.new(targetPos.X, localPosition.Y, targetPos.Z)
+							local newPos = entityPos + (CFrame.Angles(0, math.rad(ang), 0).LookVector * (StrafeRange.Value - yFactor))
+							local startRay, endRay = entityPos, newPos
+	
+							if not wallcheck and workspace:Raycast(targetPos, (localPosition - targetPos), rayCheck) then
+								startRay, endRay = entityPos + (CFrame.Angles(0, math.rad(ang), 0).LookVector * (entityPos - localPosition).Magnitude), entityPos
+							end
+	
+							local ray = workspace:Blockcast(CFrame.new(startRay), Vector3.new(1, entitylib.character.HipHeight + (root.Size.Y / 2), 1), (endRay - startRay), rayCheck)
+							if (localPosition - newPos).Magnitude < 3 or ray then
+								factor = (8 - math.min((localPosition - newPos).Magnitude, 3))
+								if ray then
+									newPos = ray.Position + (ray.Normal * 1.5)
+									factor = (localPosition - newPos).Magnitude > 3 and 0 or factor
+								end
+							end
+	
+							if not flymod.Enabled and not workspace:Raycast(newPos, Vector3.new(0, -70, 0), rayCheck) then
+								newPos = entityPos
+								factor = 40
+							end
+	
+							ang += factor % 360
+							vec = ((newPos - localPosition) * Vector3.new(1, 0, 1)).Unit
+							vec = vec == vec and vec or Vector3.zero
+							TargetStrafeVector = vec
+						else
+							ent = nil
+						end
+					end
+	
+					TargetStrafeVector = ent and vec or nil
+					oldent = ent
+					return old(self, vec, face)
+				end
+			else
+				if module and old then
+					module.moveFunction = old
+				end
+				TargetStrafeVector = nil
+			end
+		end,
+		Tooltip = 'Automatically strafes around the opponent'
+	})
+	Targets = TargetStrafe:CreateTargets({
+		Players = true,
+		Walls = true
+	})
+	SearchRange = TargetStrafe:CreateSlider({
+		Name = 'Search Range',
+		Min = 1,
+		Max = 30,
+		Default = 24,
+		Suffix = function(val)
+			return val == 1 and 'stud' or 'studs'
+		end
+	})
+	StrafeRange = TargetStrafe:CreateSlider({
+		Name = 'Strafe Range',
+		Min = 1,
+		Max = 30,
+		Default = 18,
+		Suffix = function(val)
+			return val == 1 and 'stud' or 'studs'
+		end
+	})
+	YFactor = TargetStrafe:CreateSlider({
+		Name = 'Y Factor',
+		Min = 0,
+		Max = 100,
+		Default = 100,
+		Suffix = '%'
+	})
+end)
+	
+run(function()
+	local Timer
+	local Value
+	
+	Timer = vape.Categories.Blatant:CreateModule({
+		Name = 'Timer',
+		Function = function(callback)
+			if callback then
+				setfflag('SimEnableStepPhysics', 'True')
+				setfflag('SimEnableStepPhysicsSelective', 'True')
+				Timer:Clean(runService.RenderStepped:Connect(function(dt)
+					if Value.Value > 1 then
+						runService:Pause()
+						workspace:StepPhysics(dt * (Value.Value - 1), {entitylib.character.RootPart})
+						runService:Run()
+					end
+				end))
+			end
+		end,
+		Tooltip = 'Change the game speed.'
+	})
+	Value = Timer:CreateSlider({
+		Name = 'Value',
+		Min = 1,
+		Max = 3,
+		Decimal = 10
+	})
+end)
+	
+run(function()
+	local Arrows
+	local Targets
+	local Color
+	local Teammates
+	local Distance
+	local DistanceLimit
+	local Reference = {}
+	local Folder = Instance.new('Folder')
+	Folder.Parent = vape.gui
+	
+	local function Added(ent)
+		if not Targets.Players.Enabled and ent.Player then return end
+		if not Targets.NPCs.Enabled and ent.NPC then return end
+		if Teammates.Enabled and (not ent.Targetable) and (not ent.Friend) and (not ent.Friend) then return end
+		if vape.ThreadFix then
+			setthreadidentity(8)
+		end
+	
+		local arrow = Instance.new('ImageLabel')
+		arrow.Size = UDim2.fromOffset(256, 256)
+		arrow.Position = UDim2.fromScale(0.5, 0.5)
+		arrow.AnchorPoint = Vector2.new(0.5, 0.5)
+		arrow.BackgroundTransparency = 1
+		arrow.BorderSizePixel = 0
+		arrow.Visible = false
+		arrow.Image = getcustomasset('cloud9file/assets/new/arrowmodule.png')
+		arrow.ImageColor3 = entitylib.getEntityColor(ent) or Color3.fromHSV(Color.Hue, Color.Sat, Color.Value)
+		arrow.Parent = Folder
+		Reference[ent] = arrow
+	end
+	
+	local function Removed(ent)
+		local v = Reference[ent]
+		if v then
+			if vape.ThreadFix then
+				setthreadidentity(8)
+			end
+			Reference[ent] = nil
+			v:Destroy()
+		end
+	end
+	
+	local function ColorFunc(hue, sat, val)
+		local color = Color3.fromHSV(hue, sat, val)
+		for ent, EntityArrow in Reference do
+			EntityArrow.ImageColor3 = entitylib.getEntityColor(ent) or color
+		end
+	end
+	
+	local function Loop()
+		for ent, arrow in Reference do
+			if Distance.Enabled then
+				local distance = entitylib.isAlive and (entitylib.character.RootPart.Position - ent.RootPart.Position).Magnitude or math.huge
+				if distance < DistanceLimit.ValueMin or distance > DistanceLimit.ValueMax then
+					arrow.Visible = false
+					continue
+				end
+			end
+	
+			local _, rootVis = gameCamera:WorldToScreenPoint(ent.RootPart.Position)
+			arrow.Visible = not rootVis
+			if rootVis then continue end
+	
+			local dir = CFrame.lookAlong(gameCamera.CFrame.Position, gameCamera.CFrame.LookVector * Vector3.new(1, 0, 1)):PointToObjectSpace(ent.RootPart.Position)
+			arrow.Rotation = math.deg(math.atan2(dir.Z, dir.X))
+		end
+	end
+	
+run(function()
+	local Search
+	local List
+	local Color
+	local FillTransparency
+	local Reference = {}
+	local Folder = Instance.new('Folder')
+	Folder.Parent = vape.gui
+	
+	local function Add(v)
+		if not table.find(List.ListEnabled, v.Name) then return end
+		if v:IsA('BasePart') or v:IsA('Model') then
+			local box = Instance.new('BoxHandleAdornment')
+			box.AlwaysOnTop = true
+			box.Adornee = v
+			box.Size = v:IsA('Model') and v:GetExtentsSize() or v.Size
+			box.ZIndex = 0
+			box.Transparency = FillTransparency.Value
+			box.Color3 = Color3.fromHSV(Color.Hue, Color.Sat, Color.Value)
+			box.Parent = Folder
+			Reference[v] = box
+		end
+	end
+	
 	Search = vape.Categories.Render:CreateModule({
 		Name = 'Search',
 		Function = function(callback)
