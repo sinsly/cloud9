@@ -5763,7 +5763,7 @@ end))
 mainapi:CreateGUI()
 mainapi.Categories.Main:CreateDivider()
 mainapi:CreateCategory({
-	Name = 'Combat',
+	Name = 'Main',
 	Icon = getcustomasset('cloud9file/assets/new/combaticon.png'),
 	Size = UDim2.fromOffset(13, 14)
 })
