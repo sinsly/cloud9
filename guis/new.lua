@@ -6975,4 +6975,5 @@ mainapi:Clean(inputService.InputEnded:Connect(function(inputObj)
 		table.remove(mainapi.HeldKeybinds, ind)
 	end
 end))
+mainapi.Hue = 0.56
 return mainapi
