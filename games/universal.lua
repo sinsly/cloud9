@@ -824,32 +824,42 @@ run(function()
 	end)
 end)
 entitylib.start()
+--// GLOBAL Silent Aim Settings (shared between backend + UI)
+getgenv().SilentAimSettings = {
+    Enabled = false,
+    TeamCheck = false,
+    VisibleCheck = true,
+    SilentAimMethod = "Raycast",
+    FOVRadius = 130,
+    FOVVisible = true,
+    ShowSilentAimTarget = true,
+    MouseHitPrediction = false,
+    MouseHitPredictionAmount = 0.165,
+    HitChance = 100,
+    MinDistance = 0,
+    MaxDistance = 400,
+    Priority = "Mouse", -- "Mouse" or "Character"
+    TriggerBot = false
+}
 run(function()
     local SilentAim
-    local FOV
-    local HitChance
-    local Priority
-    local TriggerBot
-    local ShowTarget
-    local VisibleCheck
-    local TeamCheck
-
-    -- must already exist from your standalone script
     local Settings = getgenv().SilentAimSettings
+
+    -- safety (should never hit now)
     if not Settings then
-        warn("SilentAimSettings missing")
+        warn("SilentAimSettings missing (this should not happen)")
         return
     end
 
     SilentAim = vape.Categories.Combat:CreateModule({
         Name = "SilentAim",
-        Function = function(callback)
-            Settings.Enabled = callback
+        Function = function(state)
+            Settings.Enabled = state
         end,
-        Tooltip = "Standalone silent aim controller"
+        Tooltip = "Standalone Silent Aim controller"
     })
 
-    FOV = SilentAim:CreateSlider({
+    SilentAim:CreateSlider({
         Name = "FOV",
         Min = 10,
         Max = 500,
@@ -859,27 +869,27 @@ run(function()
         end
     })
 
-    HitChance = SilentAim:CreateSlider({
+    SilentAim:CreateSlider({
         Name = "Hit Chance",
         Min = 0,
         Max = 100,
         Default = Settings.HitChance,
+        Suffix = "%",
         Function = function(val)
             Settings.HitChance = val
-        end,
-        Suffix = "%"
+        end
     })
 
-    Priority = SilentAim:CreateDropdown({
+    SilentAim:CreateDropdown({
         Name = "Priority",
-        List = {"Mouse", "Character"},
+        List = { "Mouse", "Character" },
         Default = Settings.Priority,
         Function = function(val)
             Settings.Priority = val
         end
     })
 
-    TriggerBot = SilentAim:CreateToggle({
+    SilentAim:CreateToggle({
         Name = "TriggerBot",
         Default = Settings.TriggerBot,
         Function = function(val)
@@ -887,15 +897,7 @@ run(function()
         end
     })
 
-    ShowTarget = SilentAim:CreateToggle({
-        Name = "Show Target",
-        Default = Settings.ShowSilentAimTarget,
-        Function = function(val)
-            Settings.ShowSilentAimTarget = val
-        end
-    })
-
-    VisibleCheck = SilentAim:CreateToggle({
+    SilentAim:CreateToggle({
         Name = "Visible Check",
         Default = Settings.VisibleCheck,
         Function = function(val)
@@ -903,14 +905,62 @@ run(function()
         end
     })
 
-    TeamCheck = SilentAim:CreateToggle({
+    SilentAim:CreateToggle({
         Name = "Team Check",
         Default = Settings.TeamCheck,
         Function = function(val)
             Settings.TeamCheck = val
         end
     })
+
+    SilentAim:CreateToggle({
+        Name = "Show Target",
+        Default = Settings.ShowSilentAimTarget,
+        Function = function(val)
+            Settings.ShowSilentAimTarget = val
+        end
+    })
+
+    SilentAim:CreateToggle({
+        Name = "Prediction",
+        Default = Settings.MouseHitPrediction,
+        Function = function(val)
+            Settings.MouseHitPrediction = val
+        end
+    })
+
+    SilentAim:CreateSlider({
+        Name = "Prediction Amount",
+        Min = 0,
+        Max = 1,
+        Decimal = 1000,
+        Default = Settings.MouseHitPredictionAmount,
+        Function = function(val)
+            Settings.MouseHitPredictionAmount = val
+        end
+    })
+
+    SilentAim:CreateSlider({
+        Name = "Min Distance",
+        Min = 0,
+        Max = 1000,
+        Default = Settings.MinDistance,
+        Function = function(val)
+            Settings.MinDistance = val
+        end
+    })
+
+    SilentAim:CreateSlider({
+        Name = "Max Distance",
+        Min = 0,
+        Max = 1000,
+        Default = Settings.MaxDistance,
+        Function = function(val)
+            Settings.MaxDistance = val
+        end
+    })
 end)
+
 
 run(function()
 	local DarkDex
