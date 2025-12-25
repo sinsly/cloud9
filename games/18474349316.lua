@@ -1051,11 +1051,113 @@ RunService.RenderStepped:Connect(function()
     elseif yScale <= ReleaseThreshold then
         hasFired = false
     end
-end)
-									
+end)								
 end)
 						
+run(function()
+    local VFXModule
 
+    -- backend settings
+    local VFXSettings = getgenv().VFXSettings or {
+        CurrentVFX = "DEFAULT"
+    }
+    getgenv().VFXSettings = VFXSettings
+
+    -- References
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local VFXFolder = ReplicatedStorage:WaitForChild("Assets"):WaitForChild("VFX")
+    local StoredDefaults = {}
+
+    -- Store DEFAULT children
+    local function storeDefault()
+        local defaultFolder = VFXFolder:FindFirstChild("DEFAULT")
+        if not defaultFolder then return end
+
+        StoredDefaults = {}
+        for _, attachmentFolder in pairs(defaultFolder:GetChildren()) do
+            StoredDefaults[attachmentFolder.Name] = {}
+            for _, obj in pairs(attachmentFolder:GetChildren()) do
+                StoredDefaults[attachmentFolder.Name][obj.Name] = obj:Clone()
+            end
+        end
+    end
+
+    -- Apply VFX
+    local function applyVFX(vfxName)
+        local defaultFolder = VFXFolder:FindFirstChild("DEFAULT")
+        if not defaultFolder then
+            warn("DEFAULT folder missing.")
+            return
+        end
+
+        if vfxName == "DEFAULT" then
+            for attachmentName, objTable in pairs(StoredDefaults) do
+                local folder = defaultFolder:FindFirstChild(attachmentName)
+                if folder then
+                    folder:ClearAllChildren()
+                    for _, cloned in pairs(objTable) do
+                        cloned:Clone().Parent = folder
+                    end
+                end
+            end
+            return
+        end
+
+        local selectedVFX = VFXFolder:FindFirstChild(vfxName)
+        if not selectedVFX then
+            warn("Invalid VFX name:", vfxName)
+            return
+        end
+
+        for _, attachmentFolder in pairs(defaultFolder:GetChildren()) do
+            attachmentFolder:ClearAllChildren()
+            local source = selectedVFX:FindFirstChild(attachmentFolder.Name)
+            if source then
+                for _, obj in pairs(source:GetChildren()) do
+                    obj:Clone().Parent = attachmentFolder
+                end
+            end
+        end
+    end
+
+    storeDefault()
+    getgenv().applyVFX = applyVFX
+
+    -- Vape UI Module
+    VFXModule = vape.Categories.General:CreateModule({
+        Name = "VFX",
+        Function = function(callback)
+            -- You can add a toggle for enabling/disabling custom VFX if needed
+        end,
+        Tooltip = "Apply different VFX sets"
+    })
+
+    -- Dropdown for all available VFX
+    local vfxList = {}
+    for _, vfx in pairs(VFXFolder:GetChildren()) do
+        table.insert(vfxList, vfx.Name)
+    end
+
+    VFXModule:CreateDropdown({
+        Name = "Select VFX",
+        List = vfxList,
+        Function = function(val)
+            VFXSettings.CurrentVFX = val
+            applyVFX(val)
+        end
+    })
+
+    -- Reset button to DEFAULT
+    VFXModule:CreateButton({
+        Name = "Reset to Default",
+        Function = function()
+            VFXSettings.CurrentVFX = "DEFAULT"
+            applyVFX("DEFAULT")
+        end
+    })
+end)
+
+							
 run(function()
 	local DarkDex
 
