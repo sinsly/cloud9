@@ -3093,12 +3093,12 @@ function mainapi:CreateGUI()
 	function categoryapi:CreateGUISlider(optionsettings)
 		local optionapi = {
 			Type = 'GUISlider',
-			Notch = 4,
-			Hue = 0.46,
-			Sat = 0.96,
-			Value = 0.52,
+			Notch = 5,
+			Hue = 0.56,
+			Sat = 0.45,
+			Value = 0.95,
 			Rainbow = false,
-			CustomColor = false
+			CustomColor = true
 		}
 		local slidercolors = {
 			Color3.fromRGB(250, 50, 56),
