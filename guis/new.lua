@@ -5767,17 +5767,7 @@ mainapi:CreateCategory({
 	Icon = getcustomasset('cloud9file/assets/new/combaticon.png'),
 	Size = UDim2.fromOffset(13, 14)
 })
-mainapi:CreateCategory({
-	Name = 'Blatant',
-	Icon = getcustomasset('cloud9file/assets/new/blatanticon.png'),
-	Size = UDim2.fromOffset(14, 14)
-})
-mainapi:CreateCategory({
-	Name = 'Render',
-	Icon = getcustomasset('cloud9file/assets/new/rendericon.png'),
-	Size = UDim2.fromOffset(15, 14)
-})
-mainapi.Categories.Main:CreateDivider('misc')
+mainapi.Categories.Main:CreateDivider('test1')
 
 --[[
 	Friends
@@ -6063,10 +6053,8 @@ guipane:CreateButton({
 		local priority = {
 			GUICategory = 1,
 			CombatCategory = 2,
-			BlatantCategory = 3,
-			RenderCategory = 4,
-			FriendsCategory = 5,
-			ProfilesCategory = 6
+			FriendsCategory = 3,
+			ProfilesCategory = 4
 		}
 		local categories = {}
 		for _, v in mainapi.Categories do
