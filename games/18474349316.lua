@@ -1055,7 +1055,7 @@ end)
 end)
 						
 run(function()
-    local VFXModule
+    local VFXTab
 
     -- backend settings
     local VFXSettings = getgenv().VFXSettings or {
@@ -1070,7 +1070,7 @@ run(function()
     local VFXFolder = ReplicatedStorage:WaitForChild("Assets"):WaitForChild("VFX")
     local StoredDefaults = {}
 
-    -- Store DEFAULT children
+    -- Store DEFAULT children for safe reset
     local function storeDefault()
         local defaultFolder = VFXFolder:FindFirstChild("DEFAULT")
         if not defaultFolder then return end
@@ -1084,37 +1084,20 @@ run(function()
         end
     end
 
-    -- Apply VFX by name
-    local function applyVFX(vfxName)
-        local defaultFolder = VFXFolder:FindFirstChild("DEFAULT")
-        if not defaultFolder then
-            warn("DEFAULT folder missing.")
+    -- Apply VFX (works for mapping input -> output)
+    local function applyVFXMapping(inputVFXName, outputVFXName)
+        local inputFolder = VFXFolder:FindFirstChild(inputVFXName)
+        local outputFolder = VFXFolder:FindFirstChild(outputVFXName)
+        if not inputFolder or not outputFolder then
+            warn("Invalid VFX mapping:", inputVFXName, "->", outputVFXName)
             return
         end
 
-        if vfxName == "DEFAULT" then
-            for attachmentName, objTable in pairs(StoredDefaults) do
-                local folder = defaultFolder:FindFirstChild(attachmentName)
-                if folder then
-                    folder:ClearAllChildren()
-                    for _, cloned in pairs(objTable) do
-                        cloned:Clone().Parent = folder
-                    end
-                end
-            end
-            return
-        end
-
-        local selectedVFX = VFXFolder:FindFirstChild(vfxName)
-        if not selectedVFX then
-            warn("Invalid VFX name:", vfxName)
-            return
-        end
-
-        for _, attachmentFolder in pairs(defaultFolder:GetChildren()) do
-            attachmentFolder:ClearAllChildren()
-            local source = selectedVFX:FindFirstChild(attachmentFolder.Name)
+        -- Replace children of input folder with output folder objects
+        for _, attachmentFolder in pairs(inputFolder:GetChildren()) do
+            local source = outputFolder:FindFirstChild(attachmentFolder.Name)
             if source then
+                attachmentFolder:ClearAllChildren()
                 for _, obj in pairs(source:GetChildren()) do
                     obj:Clone().Parent = attachmentFolder
                 end
@@ -1122,60 +1105,81 @@ run(function()
         end
     end
 
-    storeDefault()
-    getgenv().applyVFX = applyVFX
+    -- Reset all folders to DEFAULT
+    local function resetToDefault()
+        local defaultFolder = VFXFolder:FindFirstChild("DEFAULT")
+        if not defaultFolder then return end
 
-    -- Vape UI Module
-    VFXModule = vape.Categories.General:CreateModule({
-        Name = "VFX Changer",
-        Function = function(callback)
-            VFXSettings.Enabled = callback
-            if callback then
-                -- Apply current input -> output mapping
-                if VFXSettings.InputVFX ~= VFXSettings.OutputVFX then
-                    applyVFX(VFXSettings.OutputVFX)
+        for attachmentName, objTable in pairs(StoredDefaults) do
+            local folder = defaultFolder:FindFirstChild(attachmentName)
+            if folder then
+                folder:ClearAllChildren()
+                for _, cloned in pairs(objTable) do
+                    cloned:Clone().Parent = folder
                 end
-            else
-                -- Disabled: reset to defaults
-                applyVFX("DEFAULT")
             end
-        end,
+        end
+    end
+
+    storeDefault()
+    getgenv().applyVFXMapping = applyVFXMapping
+    getgenv().resetToDefault = resetToDefault
+
+    -- Vape: create new category tab (like Human/Bot)
+    VFXTab = vape:CreateTab({
+        Name = "VFX Mapper",
+        Icon = "rbxassetid://6031075938", -- example icon, can change
         Tooltip = "Map one VFX to another"
     })
 
-    -- Get all VFX names dynamically
+    -- Toggle ON/OFF for mapping
+    VFXTab:CreateToggle({
+        Name = "Enable VFX Mapper",
+        Function = function(enabled)
+            VFXSettings.Enabled = enabled
+            if enabled then
+                if VFXSettings.InputVFX ~= VFXSettings.OutputVFX then
+                    applyVFXMapping(VFXSettings.InputVFX, VFXSettings.OutputVFX)
+                end
+            else
+                resetToDefault()
+            end
+        end,
+        Default = VFXSettings.Enabled
+    })
+
+    -- Build list of all VFX dynamically
     local vfxList = {}
     for _, vfx in pairs(VFXFolder:GetChildren()) do
         table.insert(vfxList, vfx.Name)
     end
 
     -- Input VFX dropdown
-    VFXModule:CreateDropdown({
+    VFXTab:CreateDropdown({
         Name = "Input VFX",
         List = vfxList,
         Default = VFXSettings.InputVFX,
         Function = function(val)
             VFXSettings.InputVFX = val
             if VFXSettings.Enabled then
-                applyVFX(VFXSettings.OutputVFX)
+                applyVFXMapping(VFXSettings.InputVFX, VFXSettings.OutputVFX)
             end
         end
     })
 
     -- Output VFX dropdown
-    VFXModule:CreateDropdown({
+    VFXTab:CreateDropdown({
         Name = "Output VFX",
         List = vfxList,
         Default = VFXSettings.OutputVFX,
         Function = function(val)
             VFXSettings.OutputVFX = val
             if VFXSettings.Enabled then
-                applyVFX(VFXSettings.OutputVFX)
+                applyVFXMapping(VFXSettings.InputVFX, VFXSettings.OutputVFX)
             end
         end
     })
 end)
-
 
 							
 run(function()
