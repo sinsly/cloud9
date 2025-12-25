@@ -916,93 +916,55 @@ module:CreateToggle({
     end
 })
 
+-- Services
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local plr = Players.LocalPlayer
+local Action = ReplicatedStorage.Remotes.Server:WaitForChild("Action")
+local Character = plr.Character or plr.CharacterAdded:Wait()
+local hum = Character:WaitForChild("Humanoid")
+local bar = Character:WaitForChild("ShotMeterUI")
+
+-- Settings
+local QuickReleaseActive = false
+local ReleaseSpeed = 1
+local ReleaseThreshold = 0.9
+local holding = false
+local hasBall = Character:FindFirstChild("Ball") ~= nil
+local hasFired = false
+
+-- Adjust animations safely
+local function safeAdjust(track, mult)
+    if not track then return end
+    task.wait(0.03)
+    if track.IsPlaying then
+        track:AdjustSpeed(mult)
+    end
+end
+
+local function adjustAll(mult)
+    for _, t in ipairs(hum:GetPlayingAnimationTracks()) do
+        safeAdjust(t, mult)
+    end
+end
+
+-- Update multiplier based on state
+local function updateAnimations()
+    local mult = (holding and hasBall and QuickReleaseActive) and ReleaseSpeed or 1
+    adjustAll(mult)
+end
+
 -- Quick Release Toggle
 module:CreateToggle({
     Name = "Quick Release",
     Default = false,
     Function = function(state)
         QuickReleaseActive = state
-
-        local Players = game:GetService("Players")
-        local UIS = game:GetService("UserInputService")
-        local RunService = game:GetService("RunService")
-
-        local plr = Players.LocalPlayer
-        local char = plr.Character or plr.CharacterAdded:Wait()
-        local hum = char:WaitForChild("Humanoid")
-        local holding = false
-        local hasBall = char:FindFirstChild("Ball") ~= nil
-
-        local function safeAdjust(track, mult)
-            if not track then return end
-            task.wait(0.03)
-            if track.IsPlaying then
-                track:AdjustSpeed(mult)
-            end
-        end
-
-        local function adjustAll(mult)
-            for _, t in ipairs(hum:GetPlayingAnimationTracks()) do
-                safeAdjust(t, mult)
-            end
-        end
-
-        local function update()
-            local mult = (holding and hasBall and QuickReleaseActive) and 2 or 1
-            adjustAll(mult)
-        end
-
-        -- Animate new tracks
-        hum.AnimationPlayed:Connect(function(track)
-            local mult = (holding and hasBall and QuickReleaseActive) and 2 or 1
-            safeAdjust(track, mult)
-        end)
-
-        -- Ball added/removed
-        char.ChildAdded:Connect(function(c)
-            if c.Name == "Ball" then
-                hasBall = true
-                update()
-            end
-        end)
-
-        char.ChildRemoved:Connect(function(c)
-            if c.Name == "Ball" then
-                hasBall = false
-                update()
-            end
-        end)
-
-        -- Key press detection
-        UIS.InputBegan:Connect(function(input, gp)
-            if gp then return end
-            if input.KeyCode == Enum.KeyCode.E then
-                holding = true
-                update()
-            end
-        end)
-
-        UIS.InputEnded:Connect(function(input)
-            if input.KeyCode == Enum.KeyCode.E then
-                holding = false
-                update()
-            end
-        end)
-
-        -- Handle character respawn
-        plr.CharacterAdded:Connect(function(c)
-            char = c
-            hum = char:WaitForChild("Humanoid")
-            holding = false
-            hasBall = char:FindFirstChild("Ball") ~= nil
-            adjustAll(1)
-
-            hum.AnimationPlayed:Connect(function(track)
-                local mult = (holding and hasBall and QuickReleaseActive) and 2 or 1
-                safeAdjust(track, mult)
-            end)
-        end)
-    end,
+        updateAnimations()
+    end
 })
 
 -- Release Speed Slider
@@ -1015,43 +977,82 @@ module:CreateSlider({
     Suffix = "x",
     Function = function(val)
         ReleaseSpeed = val
+        updateAnimations()
     end
 })
 
--- Auto release logic
-local hasFired = false
-local Action = game:GetService("ReplicatedStorage").Remotes.Server:WaitForChild("Action")
-local bar = Character:WaitForChild("ShotMeterUI")
-local ReleaseThreshold = 0.9
+-- Track animations when played
+hum.AnimationPlayed:Connect(function(track)
+    local mult = (holding and hasBall and QuickReleaseActive) and ReleaseSpeed or 1
+    safeAdjust(track, mult)
+end)
 
-game:GetService("RunService").RenderStepped:Connect(function()
+-- Ball added/removed
+Character.ChildAdded:Connect(function(c)
+    if c.Name == "Ball" then
+        hasBall = true
+        updateAnimations()
+    end
+end)
+
+Character.ChildRemoved:Connect(function(c)
+    if c.Name == "Ball" then
+        hasBall = false
+        updateAnimations()
+    end
+end)
+
+-- Key press detection
+UIS.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.E then
+        holding = true
+        updateAnimations()
+    end
+end)
+
+UIS.InputEnded:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.E then
+        holding = false
+        updateAnimations()
+    end
+end)
+
+-- Character respawn handling
+plr.CharacterAdded:Connect(function(c)
+    Character = c
+    hum = Character:WaitForChild("Humanoid")
+    bar = Character:WaitForChild("ShotMeterUI")
+    holding = false
+    hasBall = Character:FindFirstChild("Ball") ~= nil
+    updateAnimations()
+
+    hum.AnimationPlayed:Connect(function(track)
+        local mult = (holding and hasBall and QuickReleaseActive) and ReleaseSpeed or 1
+        safeAdjust(track, mult)
+    end)
+end)
+
+-- Auto Release logic
+RunService.RenderStepped:Connect(function()
     local yScale = bar.Size.Y.Scale
 
     if yScale > ReleaseThreshold and not hasFired then
         if getgenv().AutoRelease then
+            -- Apply slider multiplier for animation speed if Quick Release active
             if QuickReleaseActive and Character:FindFirstChild("Humanoid") then
-                local hum = Character.Humanoid
-                for _, t in ipairs(hum:GetPlayingAnimationTracks()) do
-                    t:AdjustSpeed(ReleaseSpeed)
-                end
+                adjustAll((holding and hasBall) and ReleaseSpeed or 1)
             end
 
             Action:FireServer({ Shoot = false, Type = "Shoot" })
             Action:FireServer({ Action = "Jump", Jump = false })
-
-            if QuickReleaseActive and Character:FindFirstChild("Humanoid") then
-                task.defer(function()
-                    task.wait(0.1)
-                    local hum = Character.Humanoid
-                end)
-            end
         end
         hasFired = true
     elseif yScale <= ReleaseThreshold then
         hasFired = false
     end
 end)
-					
+									
 end)
 						
 
