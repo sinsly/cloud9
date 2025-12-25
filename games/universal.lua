@@ -890,7 +890,7 @@ run(function()
         return closest
     end
 
-    SilentAim = vape.Categories.Main:CreateModule({
+    SilentAim = vape.Categories.General:CreateModule({
         Name = "SilentAim",
         Function = function(callback)
             SilentAimSettings.Enabled = callback
