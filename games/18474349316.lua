@@ -857,9 +857,9 @@ run(function()
     end)
 
     --// Vape UI Integration
-    local Main = vape.Categories.Main
+    local General = vape.Categories.General
 
-    local module = Main:CreateModule({
+    local module = General:CreateModule({
         Name = "Auto Release",
         Function = function(enabled)
             getgenv().AutoRelease = enabled
