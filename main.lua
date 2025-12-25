@@ -101,18 +101,24 @@ shared.cloud9 = cloud9
 
 if not shared.Cloud9Independent then
 	local placeFile = 'cloud9file/games/'..game.PlaceId..'.lua'
+	local placeFileExists = isfile(placeFile)
 
-	if isfile(placeFile) then
+	-- Try loading local PlaceId file first
+	if placeFileExists then
 		loadstring(readfile(placeFile), tostring(game.PlaceId))(...)
 	else
-		loadstring(downloadFile('cloud9file/games/universal.lua'), 'universal')()
-		if not shared.Cloud9Developer then
-			local suc, res = pcall(function()
-				return game:HttpGet('https://raw.githubusercontent.com/sinsly/cloud9/'..readfile('cloud9file/profiles/commit.txt')..'/games/'..game.PlaceId..'.lua', true)
-			end)
-			if suc and res ~= '404: Not Found' then
-				loadstring(downloadFile(placeFile), tostring(game.PlaceId))(...)
-			end
+		-- Try getting the PlaceId file from GitHub
+		local suc, res = pcall(function()
+			return game:HttpGet('https://raw.githubusercontent.com/sinsly/cloud9/'..readfile('cloud9file/profiles/commit.txt')..'/games/'..game.PlaceId..'.lua', true)
+		end)
+
+		if suc and res ~= '404: Not Found' then
+			-- Save the downloaded file locally and run it
+			writefile(placeFile, res)
+			loadstring(res, tostring(game.PlaceId))(...)
+		else
+			-- Only load universal.lua if PlaceId file doesn't exist locally or remotely
+			loadstring(downloadFile('cloud9file/games/universal.lua'), 'universal')()
 		end
 	end
 
