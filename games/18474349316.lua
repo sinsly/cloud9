@@ -1060,56 +1060,62 @@ run(function()
     -- backend settings
     local VFXSettings = getgenv().VFXSettings or {
         Enabled = false,
-        InputVFX = "DEFAULT",
-        OutputVFX = "DEFAULT"
+        InputVFX = nil,
+        OutputVFX = nil,
+        OriginalInputCopies = {} -- stores clones of all input folders on start
     }
     getgenv().VFXSettings = VFXSettings
 
     -- References
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
     local VFXFolder = ReplicatedStorage:WaitForChild("Assets"):WaitForChild("VFX")
-    local StoredDefaults = {}
 
-    -- Store DEFAULT children
-    local function storeDefault()
-        local defaultFolder = VFXFolder:FindFirstChild("DEFAULT")
-        if not defaultFolder then return end
-
-        StoredDefaults = {}
-        for _, attachmentFolder in pairs(defaultFolder:GetChildren()) do
-            StoredDefaults[attachmentFolder.Name] = {}
-            for _, obj in pairs(attachmentFolder:GetChildren()) do
-                StoredDefaults[attachmentFolder.Name][obj.Name] = obj:Clone()
+    -- Store clones of every folder (excluding NewOldDefault)
+    for _, vfx in pairs(VFXFolder:GetChildren()) do
+        if vfx.Name ~= "NewOldDefault" then
+            VFXSettings.OriginalInputCopies[vfx.Name] = {}
+            for _, attachmentFolder in pairs(vfx:GetChildren()) do
+                VFXSettings.OriginalInputCopies[vfx.Name][attachmentFolder.Name] = {}
+                for _, obj in pairs(attachmentFolder:GetChildren()) do
+                    table.insert(VFXSettings.OriginalInputCopies[vfx.Name][attachmentFolder.Name], obj:Clone())
+                end
             end
         end
     end
 
-    -- Apply VFX by name
-    local function applyVFX(vfxName, targetFolderName)
-        local targetFolder = VFXFolder:FindFirstChild(targetFolderName or "DEFAULT")
-        if not targetFolder then
-            warn("Target folder missing:", targetFolderName or "DEFAULT")
-            return
-        end
+    -- Restore InputVFX to original
+    local function restoreInput(inputName)
+        if not inputName then return end
+        local targetFolder = VFXFolder:FindFirstChild(inputName)
+        if not targetFolder then return end
+        local original = VFXSettings.OriginalInputCopies[inputName]
+        if not original then return end
 
-        if vfxName == "DEFAULT" then
-            for attachmentName, objTable in pairs(StoredDefaults) do
-                local folder = targetFolder:FindFirstChild(attachmentName)
-                if folder then
-                    folder:ClearAllChildren()
-                    for _, cloned in pairs(objTable) do
-                        cloned:Clone().Parent = folder
-                    end
+        for attachmentName, objTable in pairs(original) do
+            local folder = targetFolder:FindFirstChild(attachmentName)
+            if folder then
+                folder:ClearAllChildren()
+                for _, obj in pairs(objTable) do
+                    obj:Clone().Parent = folder
                 end
             end
+        end
+    end
+
+    -- Apply a VFX to a target folder
+    local function applyVFX(vfxName, targetFolderName)
+        if not vfxName or not targetFolderName then return end
+        local targetFolder = VFXFolder:FindFirstChild(targetFolderName)
+        if not targetFolder then return end
+
+        -- If Input = Output, restore original Input
+        if vfxName == targetFolderName then
+            restoreInput(targetFolderName)
             return
         end
 
         local sourceVFX = VFXFolder:FindFirstChild(vfxName)
-        if not sourceVFX then
-            warn("Invalid VFX name:", vfxName)
-            return
-        end
+        if not sourceVFX then return end
 
         for _, attachmentFolder in pairs(targetFolder:GetChildren()) do
             attachmentFolder:ClearAllChildren()
@@ -1122,7 +1128,7 @@ run(function()
         end
     end
 
-    storeDefault()
+    storeDefault = restoreInput -- optional alias for convenience
     getgenv().applyVFX = applyVFX
 
     -- Vape UI Module in General tab
@@ -1131,32 +1137,44 @@ run(function()
         Function = function(callback)
             VFXSettings.Enabled = callback
             if callback then
-                if VFXSettings.InputVFX ~= VFXSettings.OutputVFX then
+                if VFXSettings.InputVFX and VFXSettings.OutputVFX then
                     applyVFX(VFXSettings.OutputVFX, VFXSettings.InputVFX)
                 end
             else
-                -- Disabled: reset everything to original default
-                applyVFX("DEFAULT")
+                -- Disabled: restore original input
+                if VFXSettings.InputVFX then
+                    restoreInput(VFXSettings.InputVFX)
+                end
             end
         end,
         Tooltip = "Map one VFX to another"
     })
 
-    -- Dynamic list of all VFX
+    -- Dynamic list of all VFX (excluding NewOldDefault)
     local vfxList = {}
     for _, vfx in pairs(VFXFolder:GetChildren()) do
-        table.insert(vfxList, vfx.Name)
+        if vfx.Name ~= "NewOldDefault" then
+            table.insert(vfxList, vfx.Name)
+        end
     end
 
     -- Input VFX dropdown
     VFXModule:CreateDropdown({
         Name = "Input VFX",
         List = vfxList,
-        Default = VFXSettings.InputVFX,
+        Default = nil,
         Function = function(val)
+            -- restore previous input if enabled
+            if VFXSettings.Enabled and VFXSettings.InputVFX and VFXSettings.InputVFX ~= val then
+                restoreInput(VFXSettings.InputVFX)
+            end
+
             VFXSettings.InputVFX = val
-            if VFXSettings.Enabled then
+
+            if VFXSettings.Enabled and VFXSettings.OutputVFX and VFXSettings.InputVFX ~= VFXSettings.OutputVFX then
                 applyVFX(VFXSettings.OutputVFX, VFXSettings.InputVFX)
+            elseif VFXSettings.Enabled and VFXSettings.OutputVFX and VFXSettings.InputVFX == VFXSettings.OutputVFX then
+                restoreInput(VFXSettings.InputVFX)
             end
         end
     })
@@ -1165,11 +1183,16 @@ run(function()
     VFXModule:CreateDropdown({
         Name = "Output VFX",
         List = vfxList,
-        Default = VFXSettings.OutputVFX,
+        Default = nil,
         Function = function(val)
             VFXSettings.OutputVFX = val
-            if VFXSettings.Enabled then
-                applyVFX(VFXSettings.OutputVFX, VFXSettings.InputVFX)
+
+            if VFXSettings.Enabled and VFXSettings.InputVFX then
+                if VFXSettings.InputVFX ~= VFXSettings.OutputVFX then
+                    applyVFX(VFXSettings.OutputVFX, VFXSettings.InputVFX)
+                else
+                    restoreInput(VFXSettings.InputVFX)
+                end
             end
         end
     })
