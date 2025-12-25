@@ -825,218 +825,59 @@ run(function()
 end)
 entitylib.start()
 run(function()
-    --// SERVICES
-    local Players = game:GetService("Players")
-    local RunService = game:GetService("RunService")
-    local Workspace = game:GetService("Workspace")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local RunService = game:GetService("RunService")
+    local Players = game:GetService("Players")
 
-    local lplr = Players.LocalPlayer
+    local Player = Players.LocalPlayer
+    local Character = Player.Character or Player.CharacterAdded:Wait()
 
-    --//================ GLIDE LOGIC ================\\--
-    local glide = 4.3
-    local maxSpeed = 11 + glide * 1.9
-    local glideEnabled = true
-    local gliding = false
-    local obj
-    local glideConn
-
-    local function findObj()
-        if not lplr then return end
-        local name = lplr.Name
-        return Workspace:FindFirstChild(name)
-            or Workspace:FindFirstChild(name:lower())
-    end
-
-    local function getVel(o)
-        if not o then return end
-        local ok, v = pcall(function()
-            return o:GetAttribute("Velocity")
-        end)
-        if ok and v ~= nil then return v end
-
-        local val = o:FindFirstChild("Velocity")
-        return val and val.Value
-    end
-
-    local function setVel(o, v)
-        if not o then return end
-        pcall(function()
-            o:SetAttribute("Velocity", v)
-        end)
-        local val = o:FindFirstChild("Velocity")
-        if val then
-            pcall(function()
-                val.Value = v
-            end)
-        end
-    end
-
-    local function isDribbling()
-        local vals = lplr:FindFirstChild("Values")
-        if vals then
-            local d = vals:FindFirstChild("Dribbling")
-            if d and typeof(d.Value) == "boolean" then
-                return d.Value
-            end
-        end
-
-        local char = lplr.Character
-        if char then
-            local ok, a = pcall(function()
-                return char:GetAttribute("Action")
-            end)
-            if ok and a == "Dribbling" then
-                return true
-            end
-        end
-        return false
-    end
-
-    local function glideTick()
-        if not glideEnabled then return end
-        if not obj or not obj.Parent then
-            obj = findObj()
-        end
-        if not obj then return end
-
-        local v = getVel(obj)
-        if not v then return end
-
-        if typeof(v) == "Vector3" then
-            if isDribbling() then
-                gliding = true
-                local dir = v.Magnitude > 0 and v.Unit or Vector3.zero
-                local nv = v + dir * glide
-                if nv.Magnitude > maxSpeed then
-                    nv = nv.Unit * maxSpeed
-                end
-                setVel(obj, nv)
-            elseif gliding then
-                gliding = false
-                setVel(obj, Vector3.new(v.X * 0.9, v.Y, v.Z * 0.9))
-            end
-        else
-            local n = tonumber(v) or 0
-            if isDribbling() then
-                gliding = true
-                setVel(obj, math.clamp(n + glide, -maxSpeed, maxSpeed))
-            elseif gliding then
-                gliding = false
-                setVel(obj, n * 0.9)
-            end
-        end
-    end
-
-    local function enableGlide()
-        glideEnabled = true
-        obj = findObj()
-        if glideConn then glideConn:Disconnect() end
-        glideConn = RunService.Heartbeat:Connect(glideTick)
-    end
-
-    local function disableGlide()
-        glideEnabled = false
-        gliding = false
-        if glideConn then
-            glideConn:Disconnect()
-            glideConn = nil
-        end
-    end
-
-    --//================ WALK SPEED ================\\--
-    local wsEnabled = false
-    local wsm = 0.1
-
-    task.spawn(function()
-        while true do
-            if wsEnabled then
-                local chr = lplr.Character
-                local hum = chr and chr:FindFirstChildWhichIsA("Humanoid")
-                if chr and hum then
-                    local dt = RunService.Heartbeat:Wait()
-                    if hum.MoveDirection.Magnitude > 0 then
-                        chr:TranslateBy(hum.MoveDirection * wsm * dt * 10)
-                    end
-                else
-                    RunService.Heartbeat:Wait()
-                end
-            else
-                RunService.Heartbeat:Wait()
-            end
-        end
-    end)
-
-    --//================ AUTO SHOOT ================\\--
     local Action = ReplicatedStorage.Remotes.Server:WaitForChild("Action")
+    local bar = Character:WaitForChild("ShotMeterUI")
+                         :WaitForChild("NewMeter")
+                         :WaitForChild("Bar")
+
     getgenv().AutoRelease = true
     local hasFired = false
+    local threshold = 0.9 -- default value
 
+    --// Connect RenderStepped for auto-release
     RunService.RenderStepped:Connect(function()
-        local char = lplr.Character
-        if not char then return end
-
-        local bar = char:FindFirstChild("ShotMeterUI", true)
-        bar = bar and bar:FindFirstChild("Bar", true)
-        if not bar then return end
+        if not getgenv().AutoRelease then return end
+        if not bar or not bar.Parent then return end
 
         local yScale = bar.Size.Y.Scale
-        if yScale > 0.9 and not hasFired then
-            if getgenv().AutoRelease then
-                Action:FireServer({ Shoot = false, Type = "Shoot" })
-                Action:FireServer({ Action = "Jump", Jump = false })
-            end
+        if yScale > threshold and not hasFired then
+            Action:FireServer({ Shoot = false, Type = "Shoot" })
+            Action:FireServer({ Action = "Jump", Jump = false })
             hasFired = true
-        elseif yScale <= 0.9 then
+        elseif yScale <= threshold then
             hasFired = false
         end
     end)
 
-    --//================ VAPE UI =================\\--
-    local Movement = vape.Categories.Movement
+    --// Vape UI Integration
     local Combat = vape.Categories.Combat
 
-    -- Glide
-    Movement:CreateModule({
-        Name = "Glide",
-        Function = function(cb)
-            if cb then
-                enableGlide()
-            else
-                disableGlide()
-            end
+    local module = Combat:CreateModule({
+        Name = "Auto Release Shot",
+        Function = function(enabled)
+            getgenv().AutoRelease = enabled
         end,
-        Tooltip = "Velocity glide while dribbling"
+        Tooltip = "Automatically releases shot when meter is full"
     })
 
-    -- WalkSpeed
-    Movement:CreateModule({
-        Name = "WalkSpeed Boost",
-        Function = function(cb)
-            wsEnabled = cb
-        end,
-        Tooltip = "Directional movement multiplier"
-    }):CreateSlider({
-        Name = "Multiplier",
-        Min = 0,
-        Max = 0.75,
-        Default = 0.1,
+    -- Add slider for threshold
+    module:CreateSlider({
+        Name = "Meter Threshold",
+        Min = 0.1,
+        Max = 1,
+        Default = threshold,
         Decimal = 2,
-        Function = function(v)
-            wsm = v
+        Function = function(val)
+            threshold = val
         end
     })
-
-    -- Auto Shoot
-    Combat:CreateModule({
-        Name = "Auto Release",
-        Function = function(cb)
-            getgenv().AutoRelease = cb
-        end,
-        Tooltip = "Automatically releases shot at peak"
-    })
-
-    enableGlide()
 end)
 
 run(function()
