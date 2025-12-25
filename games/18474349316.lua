@@ -867,26 +867,13 @@ run(function()
         Tooltip = "Automatically releases shot when meter is full"
     })
 
-    -- Add slider for threshold
-    module:CreateSlider({
-        Name = "Meter Threshold",
-        Min = 0.1,
-        Max = 1,
-        Default = threshold,
-        Decimal = 100,
-		Prefix = "ms",
-        Function = function(val)
-            threshold = val
-        end
-    })
-				-- Existing slider
 module:CreateSlider({
-    Name = "Threshold",
+    Name = "Meter Threshold",
     Min = 0.1,
     Max = 1,
     Default = threshold,
     Decimal = 100,
-    Prefix = "ms",
+    Suffix = "ms",
     Function = function(val)
         threshold = val
     end
@@ -938,6 +925,18 @@ module:CreateToggle({
         else
 			-- false logic
         end
+    end
+})
+
+module:CreateSlider({
+    Name = "Release Threshold",
+    Min = 1,
+    Max = 2,
+    Default = 1,
+    Decimal = 100,
+    Suffix = "ms",
+    Function = function(val)
+        -- fix later
     end
 })								
 end)
