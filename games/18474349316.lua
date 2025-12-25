@@ -860,7 +860,7 @@ run(function()
     local Combat = vape.Categories.Combat
 
     local module = Combat:CreateModule({
-        Name = "Auto Release Shot",
+        Name = "Auto Release",
         Function = function(enabled)
             getgenv().AutoRelease = enabled
         end,
@@ -873,7 +873,7 @@ run(function()
         Min = 0.1,
         Max = 1,
         Default = threshold,
-        Decimal = 2,
+        Decimal = 1000,
         Function = function(val)
             threshold = val
         end
