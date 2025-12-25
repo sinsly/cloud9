@@ -101,7 +101,6 @@ end
 if not isfile('cloud9file/profiles/gui.txt') then
 	writefile('cloud9file/profiles/gui.txt', 'new')
 end
-
 local gui = readfile('cloud9file/profiles/gui.txt')
 
 if not isfolder('cloud9file/assets/'..gui) then
@@ -112,30 +111,43 @@ cloud9 = loadstring(downloadFile('cloud9file/guis/'..gui..'.lua'), 'gui')()
 shared.cloud9 = cloud9
 
 if not shared.Cloud9Independent then
-	local placeFile = 'cloud9file/games/'..game.PlaceId..'.lua'
-	local placeFileExists = isfile(placeFile)
+	local placeId = game.PlaceId
+	local universeId = game.GameId
 
-	if placeFileExists then
-		loadstring(readfile(placeFile), tostring(game.PlaceId))()
-	else
+	local placeFile = 'cloud9file/games/'..placeId..'.lua'
+	local universeFile = 'cloud9file/games/universe_'..universeId..'.lua'
+
+	local function tryLoad(localPath, remotePath, chunkName)
+		if isfile(localPath) then
+			loadstring(readfile(localPath), chunkName)()
+			return true
+		end
+
 		local suc, res = pcall(function()
 			return game:HttpGet(
 				'https://raw.githubusercontent.com/sinsly/cloud9/'..
-				readfile('cloud9file/profiles/commit.txt')..
-				'/games/'..game.PlaceId..'.lua',
+				readfile('cloud9file/profiles/commit.txt')..'/'..
+				remotePath,
 				true
 			)
 		end)
 
 		if suc and res ~= '404: Not Found' then
-			writefile(placeFile, res)
-			loadstring(res, tostring(game.PlaceId))()
-		else
-			loadstring(
-				downloadFile('cloud9file/games/universal.lua'),
-				'universal'
-			)()
+			writefile(localPath, res)
+			loadstring(res, chunkName)()
+			return true
 		end
+
+		return false
+	end
+
+	-- 1️⃣ Try PlaceId first
+	if tryLoad(placeFile, 'games/'..placeId..'.lua', 'place_'..placeId) then
+	-- 2️⃣ Then Universe
+	elseif tryLoad(universeFile, 'games/universe_'..universeId..'.lua', 'universe_'..universeId) then
+	-- 3️⃣ Then Universal
+	else
+		loadstring(downloadFile('cloud9file/games/universal.lua'), 'universal')()
 	end
 
 	finishLoading()
