@@ -100,19 +100,22 @@ cloud9 = loadstring(downloadFile('cloud9file/guis/'..gui..'.lua'), 'gui')()
 shared.cloud9 = cloud9
 
 if not shared.Cloud9Independent then
-	loadstring(downloadFile('cloud9file/games/universal.lua'), 'universal')()
-	if isfile('cloud9file/games/'..game.PlaceId..'.lua') then
-		loadstring(readfile('cloud9file/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId))(...)
+	local placeFile = 'cloud9file/games/'..game.PlaceId..'.lua'
+
+	if isfile(placeFile) then
+		loadstring(readfile(placeFile), tostring(game.PlaceId))(...)
 	else
+		loadstring(downloadFile('cloud9file/games/universal.lua'), 'universal')()
 		if not shared.Cloud9Developer then
 			local suc, res = pcall(function()
 				return game:HttpGet('https://raw.githubusercontent.com/sinsly/cloud9/'..readfile('cloud9file/profiles/commit.txt')..'/games/'..game.PlaceId..'.lua', true)
 			end)
 			if suc and res ~= '404: Not Found' then
-				loadstring(downloadFile('cloud9file/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId))(...)
+				loadstring(downloadFile(placeFile), tostring(game.PlaceId))(...)
 			end
 		end
 	end
+
 	finishLoading()
 else
 	cloud9.Init = finishLoading
