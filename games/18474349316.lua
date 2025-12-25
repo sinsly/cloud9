@@ -857,9 +857,9 @@ run(function()
     end)
 
     --// Vape UI Integration
-    local Combat = vape.Categories.Combat
+    local Main = vape.Categories.Main
 
-    local module = Combat:CreateModule({
+    local module = Main:CreateModule({
         Name = "Auto Release",
         Function = function(enabled)
             getgenv().AutoRelease = enabled
@@ -929,12 +929,12 @@ module:CreateToggle({
 })
 
 module:CreateSlider({
-    Name = "Release Threshold",
+    Name = "Release Speed",
     Min = 1,
     Max = 2,
     Default = 1,
     Decimal = 100,
-    Suffix = "ms",
+    Suffix = "x",
     Function = function(val)
         -- fix later
     end
