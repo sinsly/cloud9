@@ -1059,7 +1059,9 @@ run(function()
 
     -- backend settings
     local VFXSettings = getgenv().VFXSettings or {
-        CurrentVFX = "DEFAULT"
+        Enabled = false,
+        InputVFX = "DEFAULT",
+        OutputVFX = "DEFAULT"
     }
     getgenv().VFXSettings = VFXSettings
 
@@ -1082,7 +1084,7 @@ run(function()
         end
     end
 
-    -- Apply VFX
+    -- Apply VFX by name
     local function applyVFX(vfxName)
         local defaultFolder = VFXFolder:FindFirstChild("DEFAULT")
         if not defaultFolder then
@@ -1125,37 +1127,55 @@ run(function()
 
     -- Vape UI Module
     VFXModule = vape.Categories.General:CreateModule({
-        Name = "VFX",
+        Name = "VFX Changer",
         Function = function(callback)
-            -- You can add a toggle for enabling/disabling custom VFX if needed
+            VFXSettings.Enabled = callback
+            if callback then
+                -- Apply current input -> output mapping
+                if VFXSettings.InputVFX ~= VFXSettings.OutputVFX then
+                    applyVFX(VFXSettings.OutputVFX)
+                end
+            else
+                -- Disabled: reset to defaults
+                applyVFX("DEFAULT")
+            end
         end,
-        Tooltip = "Apply different VFX sets"
+        Tooltip = "Map one VFX to another"
     })
 
-    -- Dropdown for all available VFX
+    -- Get all VFX names dynamically
     local vfxList = {}
     for _, vfx in pairs(VFXFolder:GetChildren()) do
         table.insert(vfxList, vfx.Name)
     end
 
+    -- Input VFX dropdown
     VFXModule:CreateDropdown({
-        Name = "Select VFX",
+        Name = "Input VFX",
         List = vfxList,
+        Default = VFXSettings.InputVFX,
         Function = function(val)
-            VFXSettings.CurrentVFX = val
-            applyVFX(val)
+            VFXSettings.InputVFX = val
+            if VFXSettings.Enabled then
+                applyVFX(VFXSettings.OutputVFX)
+            end
         end
     })
 
-    -- Reset button to DEFAULT
-    VFXModule:CreateButton({
-        Name = "Reset to Default",
-        Function = function()
-            VFXSettings.CurrentVFX = "DEFAULT"
-            applyVFX("DEFAULT")
+    -- Output VFX dropdown
+    VFXModule:CreateDropdown({
+        Name = "Output VFX",
+        List = vfxList,
+        Default = VFXSettings.OutputVFX,
+        Function = function(val)
+            VFXSettings.OutputVFX = val
+            if VFXSettings.Enabled then
+                applyVFX(VFXSettings.OutputVFX)
+            end
         end
     })
 end)
+
 
 							
 run(function()
