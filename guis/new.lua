@@ -6052,7 +6052,7 @@ guipane:CreateButton({
 	Function = function()
 		local priority = {
 			GUICategory = 1,
-			CombatCategory = 2,
+			MainCategory = 2,
 			FriendsCategory = 3,
 			ProfilesCategory = 4
 		}
