@@ -873,7 +873,7 @@ run(function()
         Min = 0.1,
         Max = 1,
         Default = threshold,
-        Decimal = 10,
+        Decimal = 100,
         Function = function(val)
             threshold = val
         end
