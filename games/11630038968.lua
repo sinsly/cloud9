@@ -825,150 +825,218 @@ run(function()
 end)
 entitylib.start()
 run(function()
-    local SilentAim
-    local Target
-    local Mode
-    local Range
-    local HitChance
-    local FOV
-    local ShowTarget
-    local TriggerBot
+    --// SERVICES
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local Workspace = game:GetService("Workspace")
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-    -- backend settings (your system)
-    local SilentAimSettings = getgenv().SilentAimSettings or {
-        Enabled = false,
-        TeamCheck = false,
-        VisibleCheck = true,
-        SilentAimMethod = "Raycast",
-        FOVRadius = 130,
-        FOVVisible = true,
-        ShowSilentAimTarget = true,
-        HitChance = 100,
-        MinDistance = 0,
-        MaxDistance = 400,
-        Priority = "Mouse",
-        TriggerBot = false
-    }
-    getgenv().SilentAimSettings = SilentAimSettings
+    local lplr = Players.LocalPlayer
 
-    -- drawing
-    local FOVCircle = Drawing.new("Circle")
-    FOVCircle.NumSides = 100
-    FOVCircle.Thickness = 1
-    FOVCircle.Filled = false
-    FOVCircle.Color = Color3.fromRGB(255,255,255)
-    FOVCircle.Transparency = 1
+    --//================ GLIDE LOGIC ================\\--
+    local glide = 4.3
+    local maxSpeed = 11 + glide * 1.9
+    local glideEnabled = true
+    local gliding = false
+    local obj
+    local glideConn
 
-    local Tracer = Drawing.new("Line")
-    Tracer.Thickness = 2
-    Tracer.Transparency = 1
-    Tracer.Color = Color3.fromRGB(255,0,0)
-
-    local function getClosest()
-        local closest, dist = nil, math.huge
-        local mousePos = inputService:GetMouseLocation()
-
-        for _, plr in Players:GetPlayers() do
-            if plr ~= lplr and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-                if SilentAimSettings.TeamCheck and plr.Team == lplr.Team then continue end
-                local hum = plr.Character:FindFirstChildWhichIsA("Humanoid")
-                if not hum or hum.Health <= 0 then continue end
-
-                local root = plr.Character.HumanoidRootPart
-                local screen, onScreen = gameCamera:WorldToViewportPoint(root.Position)
-                if not onScreen then continue end
-
-                local mag = (Vector2.new(screen.X, screen.Y) - mousePos).Magnitude
-                if mag > SilentAimSettings.FOVRadius then continue end
-
-                if mag < dist then
-                    dist = mag
-                    closest = plr
-                end
-            end
-        end
-        return closest
+    local function findObj()
+        if not lplr then return end
+        local name = lplr.Name
+        return Workspace:FindFirstChild(name)
+            or Workspace:FindFirstChild(name:lower())
     end
 
-    SilentAim = vape.Categories.Combat:CreateModule({
-        Name = "SilentAim",
-        Function = function(callback)
-            SilentAimSettings.Enabled = callback
-            FOVCircle.Visible = callback and SilentAimSettings.FOVVisible
-            Tracer.Visible = false
+    local function getVel(o)
+        if not o then return end
+        local ok, v = pcall(function()
+            return o:GetAttribute("Velocity")
+        end)
+        if ok and v ~= nil then return v end
 
-            if callback then
-                SilentAim:Clean(runService.RenderStepped:Connect(function()
-                    local mousePos = inputService:GetMouseLocation()
-                    FOVCircle.Position = mousePos
-                    FOVCircle.Radius = SilentAimSettings.FOVRadius
+        local val = o:FindFirstChild("Velocity")
+        return val and val.Value
+    end
 
-                    local target = getClosest()
-                    if target and target.Character then
-                        local root = target.Character:FindFirstChild("HumanoidRootPart")
-                        if root then
-                            local screen = gameCamera:WorldToViewportPoint(root.Position)
-                            Tracer.From = mousePos
-                            Tracer.To = Vector2.new(screen.X, screen.Y)
-                            Tracer.Visible = ShowTarget.Enabled
+    local function setVel(o, v)
+        if not o then return end
+        pcall(function()
+            o:SetAttribute("Velocity", v)
+        end)
+        local val = o:FindFirstChild("Velocity")
+        if val then
+            pcall(function()
+                val.Value = v
+            end)
+        end
+    end
 
-                            if TriggerBot.Enabled and mouse1click then
-                                mouse1click()
-                            end
-                        end
-                    else
-                        Tracer.Visible = false
+    local function isDribbling()
+        local vals = lplr:FindFirstChild("Values")
+        if vals then
+            local d = vals:FindFirstChild("Dribbling")
+            if d and typeof(d.Value) == "boolean" then
+                return d.Value
+            end
+        end
+
+        local char = lplr.Character
+        if char then
+            local ok, a = pcall(function()
+                return char:GetAttribute("Action")
+            end)
+            if ok and a == "Dribbling" then
+                return true
+            end
+        end
+        return false
+    end
+
+    local function glideTick()
+        if not glideEnabled then return end
+        if not obj or not obj.Parent then
+            obj = findObj()
+        end
+        if not obj then return end
+
+        local v = getVel(obj)
+        if not v then return end
+
+        if typeof(v) == "Vector3" then
+            if isDribbling() then
+                gliding = true
+                local dir = v.Magnitude > 0 and v.Unit or Vector3.zero
+                local nv = v + dir * glide
+                if nv.Magnitude > maxSpeed then
+                    nv = nv.Unit * maxSpeed
+                end
+                setVel(obj, nv)
+            elseif gliding then
+                gliding = false
+                setVel(obj, Vector3.new(v.X * 0.9, v.Y, v.Z * 0.9))
+            end
+        else
+            local n = tonumber(v) or 0
+            if isDribbling() then
+                gliding = true
+                setVel(obj, math.clamp(n + glide, -maxSpeed, maxSpeed))
+            elseif gliding then
+                gliding = false
+                setVel(obj, n * 0.9)
+            end
+        end
+    end
+
+    local function enableGlide()
+        glideEnabled = true
+        obj = findObj()
+        if glideConn then glideConn:Disconnect() end
+        glideConn = RunService.Heartbeat:Connect(glideTick)
+    end
+
+    local function disableGlide()
+        glideEnabled = false
+        gliding = false
+        if glideConn then
+            glideConn:Disconnect()
+            glideConn = nil
+        end
+    end
+
+    --//================ WALK SPEED ================\\--
+    local wsEnabled = false
+    local wsm = 0.1
+
+    task.spawn(function()
+        while true do
+            if wsEnabled then
+                local chr = lplr.Character
+                local hum = chr and chr:FindFirstChildWhichIsA("Humanoid")
+                if chr and hum then
+                    local dt = RunService.Heartbeat:Wait()
+                    if hum.MoveDirection.Magnitude > 0 then
+                        chr:TranslateBy(hum.MoveDirection * wsm * dt * 10)
                     end
-                end))
+                else
+                    RunService.Heartbeat:Wait()
+                end
+            else
+                RunService.Heartbeat:Wait()
+            end
+        end
+    end)
+
+    --//================ AUTO SHOOT ================\\--
+    local Action = ReplicatedStorage.Remotes.Server:WaitForChild("Action")
+    getgenv().AutoRelease = true
+    local hasFired = false
+
+    RunService.RenderStepped:Connect(function()
+        local char = lplr.Character
+        if not char then return end
+
+        local bar = char:FindFirstChild("ShotMeterUI", true)
+        bar = bar and bar:FindFirstChild("Bar", true)
+        if not bar then return end
+
+        local yScale = bar.Size.Y.Scale
+        if yScale > 0.9 and not hasFired then
+            if getgenv().AutoRelease then
+                Action:FireServer({ Shoot = false, Type = "Shoot" })
+                Action:FireServer({ Action = "Jump", Jump = false })
+            end
+            hasFired = true
+        elseif yScale <= 0.9 then
+            hasFired = false
+        end
+    end)
+
+    --//================ VAPE UI =================\\--
+    local Movement = vape.Categories.Movement
+    local Combat = vape.Categories.Combat
+
+    -- Glide
+    Movement:CreateModule({
+        Name = "Glide",
+        Function = function(cb)
+            if cb then
+                enableGlide()
+            else
+                disableGlide()
             end
         end,
-        Tooltip = "Raycast silent aim (new backend)"
+        Tooltip = "Velocity glide while dribbling"
     })
 
-    Target = SilentAim:CreateTargets({ Players = true })
-
-    Mode = SilentAim:CreateDropdown({
-        Name = "Priority",
-        List = { "Mouse", "Character" },
-        Function = function(val)
-            SilentAimSettings.Priority = val
-        end
-    })
-
-    FOV = SilentAim:CreateSlider({
-        Name = "FOV",
-        Min = 10,
-        Max = 500,
-        Default = SilentAimSettings.FOVRadius,
-        Function = function(val)
-            SilentAimSettings.FOVRadius = val
-        end
-    })
-
-    HitChance = SilentAim:CreateSlider({
-        Name = "Hit Chance",
-        Min = 0,
-        Max = 100,
-        Default = SilentAimSettings.HitChance,
-        Function = function(val)
-            SilentAimSettings.HitChance = val
+    -- WalkSpeed
+    Movement:CreateModule({
+        Name = "WalkSpeed Boost",
+        Function = function(cb)
+            wsEnabled = cb
         end,
-        Suffix = "%"
-    })
-
-    ShowTarget = SilentAim:CreateToggle({
-        Name = "Show Target",
-        Function = function(val)
-            SilentAimSettings.ShowSilentAimTarget = val
+        Tooltip = "Directional movement multiplier"
+    }):CreateSlider({
+        Name = "Multiplier",
+        Min = 0,
+        Max = 0.75,
+        Default = 0.1,
+        Decimal = 2,
+        Function = function(v)
+            wsm = v
         end
     })
 
-    TriggerBot = SilentAim:CreateToggle({
-        Name = "TriggerBot",
-        Function = function(val)
-            SilentAimSettings.TriggerBot = val
-        end
+    -- Auto Shoot
+    Combat:CreateModule({
+        Name = "Auto Release",
+        Function = function(cb)
+            getgenv().AutoRelease = cb
+        end,
+        Tooltip = "Automatically releases shot at peak"
     })
+
+    enableGlide()
 end)
 
 run(function()
