@@ -837,7 +837,7 @@ run(function()
                          :WaitForChild("NewMeter")
                          :WaitForChild("Bar")
 
-    getgenv().AutoRelease = true
+    getgenv().AutoRelease = false
     local hasFired = false
     local threshold = 0.9 -- default value
 
