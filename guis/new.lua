@@ -6974,5 +6974,5 @@ mainapi:Clean(inputService.InputEnded:Connect(function(inputObj)
 		table.remove(mainapi.HeldKeybinds, ind)
 	end
 end))
-
+optionapi:SetValue(0.56, 0.45, 0.95, 5)
 return mainapi
