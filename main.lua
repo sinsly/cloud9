@@ -120,7 +120,7 @@ if not shared.Cloud9Independent then
 
 	local function tryLoad(localPath, remotePath, chunkName)
 		if isfile(localPath) then
-			loadstring(readfile(localPath), chunkName)(...)
+			loadstring(readfile(localPath), chunkName)()
 			return true
 		end
 
@@ -135,28 +135,17 @@ if not shared.Cloud9Independent then
 
 		if suc and res ~= '404: Not Found' then
 			writefile(localPath, res)
-			loadstring(res, chunkName)(...)
+			loadstring(res, chunkName)()
 			return true
 		end
 
 		return false
 	end
 
-	if tryLoad(
-		placeFile,
-		'games/'..placeId..'.lua',
-		'place_'..placeId
-	) then
-	elseif tryLoad(
-		universeFile,
-		'games/universe_'..universeId..'.lua',
-		'universe_'..universeId
-	) then
+	if tryLoad(placeFile, 'games/'..placeId..'.lua', 'place_'..placeId) then
+	elseif tryLoad(universeFile, 'games/universe_'..universeId..'.lua', 'universe_'..universeId) then
 	else
-		loadstring(
-			downloadFile('cloud9file/games/universal.lua'),
-			'universal'
-		)()
+		loadstring(downloadFile('cloud9file/games/universal.lua'), 'universal')()
 	end
 
 	finishLoading()
