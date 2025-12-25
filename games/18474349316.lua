@@ -825,38 +825,46 @@ run(function()
 end)
 entitylib.start()
 run(function()
-    local ReplicatedStorage = game:GetService("ReplicatedStorage")
-    local RunService = game:GetService("RunService")
-    local Players = game:GetService("Players")
+    -- Services
+    local RS = game:GetService("ReplicatedStorage")
+    local RSrv = game:GetService("RunService")
+    local PS = game:GetService("Players")
+    local UIS = game:GetService("UserInputService")
 
-    local Player = Players.LocalPlayer
-    local Character = Player.Character or Player.CharacterAdded:Wait()
+    local LP = PS.LocalPlayer
+    local CH = LP.Character or LP.CharacterAdded:Wait()
+    local hum = CH:WaitForChild("Humanoid")
 
-    local Action = ReplicatedStorage.Remotes.Server:WaitForChild("Action")
-    local bar = Character:WaitForChild("ShotMeterUI")
-                         :WaitForChild("NewMeter")
-                         :WaitForChild("Bar")
+    local Action = RS.Remotes.Server:WaitForChild("Action")
+    local Bar = CH:WaitForChild("ShotMeterUI")
+        :WaitForChild("NewMeter")
+        :WaitForChild("Bar")
 
+    -- Globals
     getgenv().AutoRelease = false
-    local hasFired = false
-    local threshold = 0.9 -- default value
 
-    --// Connect RenderStepped for auto-release
-    RunService.RenderStepped:Connect(function()
-        if not getgenv().AutoRelease then return end
-        if not bar or not bar.Parent then return end
+    -- Auto Release State
+    local fired = false
+    local threshold = 0.9 -- base slider value
 
-        local yScale = bar.Size.Y.Scale
-        if yScale > threshold and not hasFired then
-            Action:FireServer({ Shoot = false, Type = "Shoot" })
-            Action:FireServer({ Action = "Jump", Jump = false })
-            hasFired = true
-        elseif yScale <= threshold then
-            hasFired = false
-        end
-    end)
+    -- Cloud value (for smoothing / visuals)
+    local R = Instance.new("NumberValue")
+    R.Name = "cloudValue"
+    R.Parent = LP
 
-    --// Vape UI Integration
+    -- Ping helpers
+    local function getPing()
+        local n = LP:FindFirstChild("NetworkClient")
+        n = n and n:FindFirstChild("Ping")
+        return n and (n:GetValue() / 1000) or 0.15
+    end
+
+    local function getAdaptiveThreshold()
+        local p = getPing()
+        return threshold - math.clamp(p * 0.15, 0, 0.01)
+    end
+
+    -- ================= UI =================
     local General = vape.Categories.General
 
     local module = General:CreateModule({
@@ -864,195 +872,150 @@ run(function()
         Function = function(enabled)
             getgenv().AutoRelease = enabled
         end,
-        Tooltip = "Automatically releases shot when meter is full"
+        Tooltip = "Ping-adaptive automatic shot release"
     })
 
-module:CreateSlider({
-    Name = "Meter Threshold",
-    Min = 0.1,
-    Max = 1,
-    Default = threshold,
-    Decimal = 100,
-    Suffix = "ms",
-    Function = function(val)
-        threshold = val
-    end
-})
+    module:CreateSlider({
+        Name = "Meter Threshold",
+        Min = 0.85,
+        Max = 1,
+        Default = threshold,
+        Decimal = 100,
+        Suffix = "%",
+        Function = function(val)
+            threshold = val
+        end
+    })
 
--- New toggle
-module:CreateToggle({
-    Name = "Latency Check",
-    Default = true,
-    Function = function(state)
-        if state then
-			-- true logic
-        else
-			-- false logic
+    module:CreateToggle({
+        Name = "Latency Check",
+        Default = true,
+        Function = function(state)
+            getgenv().LatencyCheck = state
+        end
+    })
+
+    module:CreateToggle({
+        Name = "Off Dribble Reducer",
+        Default = true,
+        Function = function() end
+    })
+
+    module:CreateToggle({
+        Name = "Moving Shot Reducer",
+        Default = true,
+        Function = function() end
+    })
+
+    -- ================= QUICK RELEASE =================
+    local QuickReleaseActive = false
+    local ReleaseSpeed = 1
+    local holding = false
+    local hasBall = CH:FindFirstChild("Ball") ~= nil
+
+    local function safeAdjust(track, mult)
+        if track and track.IsPlaying then
+            task.wait(0.03)
+            track:AdjustSpeed(mult)
         end
     end
-})
 
-module:CreateToggle({
-    Name = "Off Dribble Reducer",
-    Default = true,
-    Function = function(state)
-        if state then
-			-- true logic
-        else
-			-- false logic
+    local function adjustAll(mult)
+        for _, t in ipairs(hum:GetPlayingAnimationTracks()) do
+            safeAdjust(t, mult)
         end
     end
-})
-							
-module:CreateToggle({
-    Name = "Moving Shot Reducer",
-    Default = true,
-    Function = function(state)
-        if state then
-			-- true logic
-        else
-			-- false logic
+
+    local function updateAnimations()
+        local mult = (holding and hasBall and QuickReleaseActive) and ReleaseSpeed or 1
+        adjustAll(mult)
+    end
+
+    module:CreateToggle({
+        Name = "Quick Release",
+        Default = false,
+        Function = function(state)
+            QuickReleaseActive = state
+            updateAnimations()
         end
-    end
-})
+    })
 
--- Services
-local Players = game:GetService("Players")
-local UIS = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-local plr = Players.LocalPlayer
-local Action = ReplicatedStorage.Remotes.Server:WaitForChild("Action")
-local Character = plr.Character or plr.CharacterAdded:Wait()
-local hum = Character:WaitForChild("Humanoid")
-local bar = Character:WaitForChild("ShotMeterUI")
-
--- Settings
-local QuickReleaseActive = false
-local ReleaseSpeed = 1
-local ReleaseThreshold = 0.9
-local holding = false
-local hasBall = Character:FindFirstChild("Ball") ~= nil
-local hasFired = false
-
--- Adjust animations safely
-local function safeAdjust(track, mult)
-    if not track then return end
-    task.wait(0.03)
-    if track.IsPlaying then
-        track:AdjustSpeed(mult)
-    end
-end
-
-local function adjustAll(mult)
-    for _, t in ipairs(hum:GetPlayingAnimationTracks()) do
-        safeAdjust(t, mult)
-    end
-end
-
--- Update multiplier based on state
-local function updateAnimations()
-    local mult = (holding and hasBall and QuickReleaseActive) and ReleaseSpeed or 1
-    adjustAll(mult)
-end
-
--- Quick Release Toggle
-module:CreateToggle({
-    Name = "Quick Release",
-    Default = false,
-    Function = function(state)
-        QuickReleaseActive = state
-        updateAnimations()
-    end
-})
-
--- Release Speed Slider
-module:CreateSlider({
-    Name = "Release Speed",
-    Min = 1,
-    Max = 2,
-    Default = 1,
-    Decimal = 100,
-    Suffix = "x",
-    Function = function(val)
-        ReleaseSpeed = val
-        updateAnimations()
-    end
-})
-
--- Track animations when played
-hum.AnimationPlayed:Connect(function(track)
-    local mult = (holding and hasBall and QuickReleaseActive) and ReleaseSpeed or 1
-    safeAdjust(track, mult)
-end)
-
--- Ball added/removed
-Character.ChildAdded:Connect(function(c)
-    if c.Name == "Ball" then
-        hasBall = true
-        updateAnimations()
-    end
-end)
-
-Character.ChildRemoved:Connect(function(c)
-    if c.Name == "Ball" then
-        hasBall = false
-        updateAnimations()
-    end
-end)
-
--- Key press detection
-UIS.InputBegan:Connect(function(input, gp)
-    if gp then return end
-    if input.KeyCode == Enum.KeyCode.E then
-        holding = true
-        updateAnimations()
-    end
-end)
-
-UIS.InputEnded:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.E then
-        holding = false
-        updateAnimations()
-    end
-end)
-
--- Character respawn handling
-plr.CharacterAdded:Connect(function(c)
-    Character = c
-    hum = Character:WaitForChild("Humanoid")
-    bar = Character:WaitForChild("ShotMeterUI")
-    holding = false
-    hasBall = Character:FindFirstChild("Ball") ~= nil
-    updateAnimations()
+    module:CreateSlider({
+        Name = "Release Speed",
+        Min = 1,
+        Max = 2,
+        Default = 1,
+        Decimal = 100,
+        Suffix = "x",
+        Function = function(val)
+            ReleaseSpeed = val
+            updateAnimations()
+        end
+    })
 
     hum.AnimationPlayed:Connect(function(track)
-        local mult = (holding and hasBall and QuickReleaseActive) and ReleaseSpeed or 1
-        safeAdjust(track, mult)
+        safeAdjust(track, (holding and hasBall and QuickReleaseActive) and ReleaseSpeed or 1)
     end)
-end)
 
--- Auto Release logic
-RunService.RenderStepped:Connect(function()
-    local yScale = bar.Size.Y.Scale
+    UIS.InputBegan:Connect(function(i, gp)
+        if gp then return end
+        if i.KeyCode == Enum.KeyCode.E then
+            holding = true
+            updateAnimations()
+        end
+    end)
 
-    if yScale > ReleaseThreshold and not hasFired then
-        if getgenv().AutoRelease then
-            -- Apply slider multiplier for animation speed if Quick Release active
-            if QuickReleaseActive and Character:FindFirstChild("Humanoid") then
+    UIS.InputEnded:Connect(function(i)
+        if i.KeyCode == Enum.KeyCode.E then
+            holding = false
+            updateAnimations()
+        end
+    end)
+
+    -- ================= AUTO RELEASE CORE =================
+    RSrv.RenderStepped:Connect(function()
+        if not getgenv().AutoRelease then
+            R.Value = 0
+            return
+        end
+
+        local s = Bar.Size.Y.Scale
+        local T = getgenv().LatencyCheck and getAdaptiveThreshold() or threshold
+
+        -- window smoothing
+        local L, U = 0.88, T + 0.01
+        if s >= L and s <= U then
+            R.Value = math.clamp((s - L) / (U - L), 0, 1)
+        else
+            R.Value = 0
+        end
+
+        if s >= T and not fired then
+            if s < 0.89 then return end
+
+            if QuickReleaseActive then
                 adjustAll((holding and hasBall) and ReleaseSpeed or 1)
             end
 
             Action:FireServer({ Shoot = false, Type = "Shoot" })
             Action:FireServer({ Action = "Jump", Jump = false })
+            fired = true
+
+        elseif s < 0.89 then
+            fired = false
         end
-        hasFired = true
-    elseif yScale <= ReleaseThreshold then
-        hasFired = false
-    end
-end)								
+    end)
+
+    -- Respawn handling
+    LP.CharacterAdded:Connect(function(c)
+        CH = c
+        hum = CH:WaitForChild("Humanoid")
+        Bar = CH:WaitForChild("ShotMeterUI"):WaitForChild("NewMeter"):WaitForChild("Bar")
+        hasBall = CH:FindFirstChild("Ball") ~= nil
+        fired = false
+    end)
 end)
+
 						
 run(function()
     local VFXModule
