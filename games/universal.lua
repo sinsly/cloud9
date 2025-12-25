@@ -824,143 +824,152 @@ run(function()
 	end)
 end)
 entitylib.start()
---// GLOBAL Silent Aim Settings (shared between backend + UI)
-getgenv().SilentAimSettings = {
-    Enabled = false,
-    TeamCheck = false,
-    VisibleCheck = true,
-    SilentAimMethod = "Raycast",
-    FOVRadius = 130,
-    FOVVisible = true,
-    ShowSilentAimTarget = true,
-    MouseHitPrediction = false,
-    MouseHitPredictionAmount = 0.165,
-    HitChance = 100,
-    MinDistance = 0,
-    MaxDistance = 400,
-    Priority = "Mouse", -- "Mouse" or "Character"
-    TriggerBot = false
-}
 run(function()
     local SilentAim
-    local Settings = getgenv().SilentAimSettings
+    local Target
+    local Mode
+    local Range
+    local HitChance
+    local FOV
+    local ShowTarget
+    local TriggerBot
 
-    -- safety (should never hit now)
-    if not Settings then
-        warn("SilentAimSettings missing (this should not happen)")
-        return
+    -- backend settings (your system)
+    local SilentAimSettings = getgenv().SilentAimSettings or {
+        Enabled = false,
+        TeamCheck = false,
+        VisibleCheck = true,
+        SilentAimMethod = "Raycast",
+        FOVRadius = 130,
+        FOVVisible = true,
+        ShowSilentAimTarget = true,
+        HitChance = 100,
+        MinDistance = 0,
+        MaxDistance = 400,
+        Priority = "Mouse",
+        TriggerBot = false
+    }
+    getgenv().SilentAimSettings = SilentAimSettings
+
+    -- drawing
+    local FOVCircle = Drawing.new("Circle")
+    FOVCircle.NumSides = 100
+    FOVCircle.Thickness = 1
+    FOVCircle.Filled = false
+    FOVCircle.Color = Color3.fromRGB(255,255,255)
+    FOVCircle.Transparency = 1
+
+    local Tracer = Drawing.new("Line")
+    Tracer.Thickness = 2
+    Tracer.Transparency = 1
+    Tracer.Color = Color3.fromRGB(255,0,0)
+
+    local function getClosest()
+        local closest, dist = nil, math.huge
+        local mousePos = inputService:GetMouseLocation()
+
+        for _, plr in Players:GetPlayers() do
+            if plr ~= lplr and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                if SilentAimSettings.TeamCheck and plr.Team == lplr.Team then continue end
+                local hum = plr.Character:FindFirstChildWhichIsA("Humanoid")
+                if not hum or hum.Health <= 0 then continue end
+
+                local root = plr.Character.HumanoidRootPart
+                local screen, onScreen = gameCamera:WorldToViewportPoint(root.Position)
+                if not onScreen then continue end
+
+                local mag = (Vector2.new(screen.X, screen.Y) - mousePos).Magnitude
+                if mag > SilentAimSettings.FOVRadius then continue end
+
+                if mag < dist then
+                    dist = mag
+                    closest = plr
+                end
+            end
+        end
+        return closest
     end
 
     SilentAim = vape.Categories.Combat:CreateModule({
         Name = "SilentAim",
-        Function = function(state)
-            Settings.Enabled = state
+        Function = function(callback)
+            SilentAimSettings.Enabled = callback
+            FOVCircle.Visible = callback and SilentAimSettings.FOVVisible
+            Tracer.Visible = false
+
+            if callback then
+                SilentAim:Clean(runService.RenderStepped:Connect(function()
+                    local mousePos = inputService:GetMouseLocation()
+                    FOVCircle.Position = mousePos
+                    FOVCircle.Radius = SilentAimSettings.FOVRadius
+
+                    local target = getClosest()
+                    if target and target.Character then
+                        local root = target.Character:FindFirstChild("HumanoidRootPart")
+                        if root then
+                            local screen = gameCamera:WorldToViewportPoint(root.Position)
+                            Tracer.From = mousePos
+                            Tracer.To = Vector2.new(screen.X, screen.Y)
+                            Tracer.Visible = ShowTarget.Enabled
+
+                            if TriggerBot.Enabled and mouse1click then
+                                mouse1click()
+                            end
+                        end
+                    else
+                        Tracer.Visible = false
+                    end
+                end))
+            end
         end,
-        Tooltip = "Standalone Silent Aim controller"
+        Tooltip = "Raycast silent aim (new backend)"
     })
 
-    SilentAim:CreateSlider({
+    Target = SilentAim:CreateTargets({ Players = true })
+
+    Mode = SilentAim:CreateDropdown({
+        Name = "Priority",
+        List = { "Mouse", "Character" },
+        Function = function(val)
+            SilentAimSettings.Priority = val
+        end
+    })
+
+    FOV = SilentAim:CreateSlider({
         Name = "FOV",
         Min = 10,
         Max = 500,
-        Default = Settings.FOVRadius,
+        Default = SilentAimSettings.FOVRadius,
         Function = function(val)
-            Settings.FOVRadius = val
+            SilentAimSettings.FOVRadius = val
         end
     })
 
-    SilentAim:CreateSlider({
+    HitChance = SilentAim:CreateSlider({
         Name = "Hit Chance",
         Min = 0,
         Max = 100,
-        Default = Settings.HitChance,
-        Suffix = "%",
+        Default = SilentAimSettings.HitChance,
         Function = function(val)
-            Settings.HitChance = val
-        end
+            SilentAimSettings.HitChance = val
+        end,
+        Suffix = "%"
     })
 
-    SilentAim:CreateDropdown({
-        Name = "Priority",
-        List = { "Mouse", "Character" },
-        Default = Settings.Priority,
-        Function = function(val)
-            Settings.Priority = val
-        end
-    })
-
-    SilentAim:CreateToggle({
-        Name = "TriggerBot",
-        Default = Settings.TriggerBot,
-        Function = function(val)
-            Settings.TriggerBot = val
-        end
-    })
-
-    SilentAim:CreateToggle({
-        Name = "Visible Check",
-        Default = Settings.VisibleCheck,
-        Function = function(val)
-            Settings.VisibleCheck = val
-        end
-    })
-
-    SilentAim:CreateToggle({
-        Name = "Team Check",
-        Default = Settings.TeamCheck,
-        Function = function(val)
-            Settings.TeamCheck = val
-        end
-    })
-
-    SilentAim:CreateToggle({
+    ShowTarget = SilentAim:CreateToggle({
         Name = "Show Target",
-        Default = Settings.ShowSilentAimTarget,
         Function = function(val)
-            Settings.ShowSilentAimTarget = val
+            SilentAimSettings.ShowSilentAimTarget = val
         end
     })
 
-    SilentAim:CreateToggle({
-        Name = "Prediction",
-        Default = Settings.MouseHitPrediction,
+    TriggerBot = SilentAim:CreateToggle({
+        Name = "TriggerBot",
         Function = function(val)
-            Settings.MouseHitPrediction = val
-        end
-    })
-
-    SilentAim:CreateSlider({
-        Name = "Prediction Amount",
-        Min = 0,
-        Max = 1,
-        Decimal = 1000,
-        Default = Settings.MouseHitPredictionAmount,
-        Function = function(val)
-            Settings.MouseHitPredictionAmount = val
-        end
-    })
-
-    SilentAim:CreateSlider({
-        Name = "Min Distance",
-        Min = 0,
-        Max = 1000,
-        Default = Settings.MinDistance,
-        Function = function(val)
-            Settings.MinDistance = val
-        end
-    })
-
-    SilentAim:CreateSlider({
-        Name = "Max Distance",
-        Min = 0,
-        Max = 1000,
-        Default = Settings.MaxDistance,
-        Function = function(val)
-            Settings.MaxDistance = val
+            SilentAimSettings.TriggerBot = val
         end
     })
 end)
-
 
 run(function()
 	local DarkDex
