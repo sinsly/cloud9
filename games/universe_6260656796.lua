@@ -1260,24 +1260,36 @@ run(function()
 end)
 												
 run(function()
+    -- Services
     local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
     local Player = Players.LocalPlayer
 
-    -- backend settings
+    -- Backend settings
     local DribbleSettings = getgenv().DribbleSettings or {
-        AntiStun = false
+        AntiStun = false,
+        QuickDribbleEnabled = true,
+        DribbleSpeed = 1.5,
+        GlideEnabled = true,
+        GlideMultiplier = 1.25
     }
     getgenv().DribbleSettings = DribbleSettings
 
+    -- Track original animation speeds
+    local originalSpeeds = {}
+
+    -- Setup function for character
     local function setupCharacter(character)
         local obj = character
+        local Humanoid = obj:WaitForChild("Humanoid")
+        local ActionAttribute = obj:WaitForChild("Action")
 
         -- ensure Stunned starts false
         obj:SetAttribute("Stunned", false)
 
-        -- hook FireServer to detect Dribble actions
+        -- Hook FireServer to detect Dribble actions
         local ActionRemote = ReplicatedStorage.Remotes.Server.Action
         local dribbling = false
 
@@ -1300,30 +1312,71 @@ run(function()
             return old(self, ...)
         end)
 
-        -- only force Stunned to false while dribbling and toggle enabled
+        -- Anti-Stun
         obj:GetAttributeChangedSignal("Stunned"):Connect(function()
             if DribbleSettings.AntiStun and dribbling and obj:GetAttribute("Stunned") == true then
                 obj:SetAttribute("Stunned", false)
             end
         end)
+
+        -- Quick Dribble: animation speed
+        local function updateAnimationSpeed()
+            if not DribbleSettings.QuickDribbleEnabled then return end
+            if ActionAttribute.Value == "Dribbling" then
+                for _, track in pairs(Humanoid:GetPlayingAnimationTracks()) do
+                    if not originalSpeeds[track] then
+                        originalSpeeds[track] = track.Speed
+                    end
+                    track.Speed = originalSpeeds[track] * DribbleSettings.DribbleSpeed
+                end
+            else
+                for track, speed in pairs(originalSpeeds) do
+                    track.Speed = speed
+                end
+                originalSpeeds = {}
+            end
+        end
+
+        -- Dribble Glide: velocity multiplier
+        local lastVelocity = nil
+        local function applyGlide()
+            if not DribbleSettings.GlideEnabled then return end
+            if ActionAttribute.Value ~= "Dribbling" then return end
+
+            local vel = obj:GetAttribute("Velocity")
+            if not vel or vel.Magnitude == 0 then return end
+
+            if vel ~= lastVelocity then
+                local mul = DribbleSettings.GlideMultiplier
+                local newVel = Vector3.new(vel.X * mul, vel.Y * mul, vel.Z * mul)
+                obj:SetAttribute("Velocity", newVel)
+                lastVelocity = newVel
+            end
+        end
+
+        -- Connect updates
+        ActionAttribute:GetPropertyChangedSignal("Value"):Connect(updateAnimationSpeed)
+        ActionAttribute:GetPropertyChangedSignal("Value"):Connect(applyGlide)
+        obj:GetAttributeChangedSignal("Velocity"):Connect(applyGlide)
+        RunService.RenderStepped:Connect(updateAnimationSpeed)
     end
 
-    -- initial character
+    -- Initial character
     local character = Player.Character or Player.CharacterAdded:Wait()
     setupCharacter(character)
 
-    -- handle respawns
+    -- Handle respawns
     Player.CharacterAdded:Connect(function(char)
         setupCharacter(char)
     end)
 
-    -- Vape UI module
+    -- Vape UI Module
     local DribbleModule = vape.Categories.General:CreateModule({
         Name = "Dribble Enhancer",
         Function = function(callback)
-            DribbleSettings.AntiStun = callback
+            -- Module toggle can enable everything; individual settings controlled by toggles/sliders
         end,
-        Tooltip = "Enhances dribbles or some shit idk man."
+        Tooltip = "Enhances dribble: Anti-Stun, Quick Dribble, and Glide"
     })
 
     -- Anti-Stun toggle
@@ -1331,6 +1384,48 @@ run(function()
         Name = "Anti-Stun",
         Function = function(value)
             DribbleSettings.AntiStun = value
+        end
+    })
+
+    -- Quick Dribble toggle
+    DribbleModule:CreateToggle({
+        Name = "Quick Dribble",
+        Function = function(value)
+            DribbleSettings.QuickDribbleEnabled = value
+        end
+    })
+
+    -- Quick Dribble speed slider
+    DribbleModule:CreateSlider({
+        Name = "Dribble Speed",
+        Min = 1,
+        Max = 2.75,
+        Default = DribbleSettings.DribbleSpeed,
+        Decimal = 10,
+        Suffix = "x",
+        Function = function(val)
+            DribbleSettings.DribbleSpeed = val
+        end
+    })
+
+    -- Dribble Glide toggle
+    DribbleModule:CreateToggle({
+        Name = "Dribble Glide",
+        Function = function(value)
+            DribbleSettings.GlideEnabled = value
+        end
+    })
+
+    -- Dribble Glide slider
+    DribbleModule:CreateSlider({
+        Name = "Dribble Glide Multiplier",
+        Min = 0.5,
+        Max = 1.25,
+        Default = DribbleSettings.GlideMultiplier,
+        Decimal = 10,
+        Suffix = "x",
+        Function = function(val)
+            DribbleSettings.GlideMultiplier = val
         end
     })
 end)
