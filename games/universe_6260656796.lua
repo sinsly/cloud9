@@ -1198,7 +1198,68 @@ run(function()
     })
 end)
 
+run(function()
+    local Workspace = game:GetService("Workspace")
 
+    -- backend settings
+    local BallSettings = getgenv().BallSettings or {
+        Enabled = false,
+        Range = 8,
+        DefaultSize = Vector3.new(1.25, 1.25, 1.25)
+    }
+    getgenv().BallSettings = BallSettings
+
+    -- apply size to all Balls
+    local function applySize(size)
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if obj:IsA("BasePart") and obj.Name == "Ball" then
+                obj.Size = size
+            end
+        end
+    end
+
+    -- convert slider value → Vector3
+    local function getSizeFromRange(range)
+        if range == 1 then
+            return BallSettings.DefaultSize
+        end
+        return Vector3.new(range, range, range)
+    end
+
+    -- Vape UI module
+    local BallModule = vape.Categories.General:CreateModule({
+        Name = "Ball Reach",
+        Function = function(callback)
+            BallSettings.Enabled = callback
+
+            if callback then
+                applySize(getSizeFromRange(BallSettings.Range))
+            else
+                applySize(BallSettings.DefaultSize)
+            end
+        end,
+        Tooltip = "Changes Ball hitbox size"
+    })
+
+    -- Range slider
+    BallModule:CreateSlider({
+        Name = "Range",
+        Min = 1,
+        Max = 8,
+        Default = 8,
+        Decimal = 10,
+        Suffix = "studs",
+        Function = function(val)
+            BallSettings.Range = val
+
+            if BallSettings.Enabled then
+                applySize(getSizeFromRange(val))
+            end
+        end
+    })
+end)
+
+									
 							
 run(function()
 	local DarkDex
