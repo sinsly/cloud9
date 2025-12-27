@@ -1267,14 +1267,19 @@ run(function()
     local lplr = Players.LocalPlayer
     local ActionRemote = ReplicatedStorage.Remotes.Server.Action
 
-    -- global state
-    getgenv().AntiStunDribbleEnabled = false
-    getgenv().AntiStunDribbleDribbling = false
+    -- backend settings
+    local DribbleEnhancerSettings = getgenv().DribbleEnhancerSettings or {
+        Enabled = false
+    }
+    getgenv().DribbleEnhancerSettings = DribbleEnhancerSettings
 
+    -- state
+    getgenv().DribbleEnhancerDribbling = false
     local char
     local stunConn
     local oldNamecall
 
+    -- setup character attribute hook
     local function setupCharacter(character)
         char = character
 
@@ -1286,19 +1291,20 @@ run(function()
         char:SetAttribute("Stunned", false)
 
         stunConn = char:GetAttributeChangedSignal("Stunned"):Connect(function()
-            if getgenv().AntiStunDribbleEnabled and getgenv().AntiStunDribbleDribbling and char:GetAttribute("Stunned") == true then
+            if DribbleEnhancerSettings.Enabled and getgenv().DribbleEnhancerDribbling and char:GetAttribute("Stunned") == true then
                 char:SetAttribute("Stunned", false)
             end
         end)
     end
 
-    vape.Combat:CreateModule({
-        Name = "AntiStunDribble",
+    -- Vape UI module (General category)
+    local DribbleEnhancerModule = vape.Categories.General:CreateModule({
+        Name = "Dribble Enhancer",
         Function = function(callback)
-            getgenv().AntiStunDribbleEnabled = callback
+            DribbleEnhancerSettings.Enabled = callback
 
             if not callback then
-                getgenv().AntiStunDribbleDribbling = false
+                getgenv().DribbleEnhancerDribbling = false
                 if stunConn then
                     stunConn:Disconnect()
                     stunConn = nil
@@ -1312,24 +1318,27 @@ run(function()
 
             lplr.CharacterAdded:Connect(setupCharacter)
 
+            -- hook FireServer for Dribble detection
             if not oldNamecall then
                 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
                     local method = getnamecallmethod()
                     local args = { ... }
 
-                    if getgenv().AntiStunDribbleEnabled and self == ActionRemote and method == "FireServer" then
+                    if DribbleEnhancerSettings.Enabled and self == ActionRemote and method == "FireServer" then
                         local data = args[1]
                         if type(data) == "table" and data.Type then
-                            getgenv().AntiStunDribbleDribbling = (data.Type == "Dribble")
+                            getgenv().DribbleEnhancerDribbling = (data.Type == "Dribble")
                         end
                     end
 
                     return oldNamecall(self, ...)
                 end)
             end
-        end
+        end,
+        Tooltip = "Prevents you from getting stunned while Dribbling"
     })
 end)
+
 												
 							
 run(function()
