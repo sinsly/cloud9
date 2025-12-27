@@ -1,4 +1,3 @@
-
 local loadstring = function(...)
 	local res, err = loadstring(...)
 	if err and vape then
@@ -844,14 +843,11 @@ run(function()
     local AutoGreenSettings = getgenv().AutoGreenSettings or {
         Enabled = true,
 
-        -- only used for UI configuration
-        ConfigType = "Vertical",
-
-        -- positive UI values (negated internally)
+        -- UI values (POSITIVE, converted to negative internally)
         Threshold = {
-            Vertical = 0.266,
-            Rocket   = 0.75,
-            Bat      = 0.80
+            Vertical = 1.266, -- -> -1.266
+            Rocket   = 0.75,  -- -> -0.75
+            Bat      = 0.80   -- -> -0.80
         }
     }
     getgenv().AutoGreenSettings = AutoGreenSettings
@@ -908,23 +904,14 @@ run(function()
         end
     })
 
-    -- dropdown ONLY for configuration
-    AutoGreen:CreateDropdown({
-        Name = "Configure Meter",
-        List = { "Vertical", "Rocket", "Bat" },
-        Function = function(val)
-            AutoGreenSettings.ConfigType = val
-        end
-    })
-
     -- =========================
-    -- THRESHOLD SLIDERS
+    -- METER THRESHOLD SLIDERS
     -- =========================
     local function createThresholdSlider(name)
         AutoGreen:CreateSlider({
             Name = name .. " Meter Threshold",
-            Min = 0.1,
-            Max = 1,
+            Min = 0.60,
+            Max = 1.50,
             Default = AutoGreenSettings.Threshold[name],
             Decimal = 100,
             Suffix = "ms",
@@ -978,6 +965,7 @@ run(function()
                     local y = grad.Offset.Y
                     lastY[meterName] = lastY[meterName] or y
 
+                    -- detect active moving meter
                     if math.abs(y - lastY[meterName]) > 0.0005 then
                         activeMeter = meterName
                         activeY = y
@@ -995,11 +983,13 @@ run(function()
             return
         end
 
+        -- fire exactly once when crossing threshold
         if not fired and lastY[activeMeter] > activeFireAt and activeY <= activeFireAt then
             fired = true
             shootRemote:FireServer({ Shoot = false })
         end
 
+        -- reset once meter rises again
         if activeY > -0.1 then
             fired = false
         end
