@@ -1258,89 +1258,84 @@ run(function()
         end
     })
 end)
-
-
+												
 run(function()
     local Players = game:GetService("Players")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-    local lplr = Players.LocalPlayer
-    local ActionRemote = ReplicatedStorage.Remotes.Server.Action
+    local Player = Players.LocalPlayer
 
     -- backend settings
-    local DribbleEnhancerSettings = getgenv().DribbleEnhancerSettings or {
-        Enabled = false
+    local DribbleSettings = getgenv().DribbleSettings or {
+        AntiStun = false
     }
-    getgenv().DribbleEnhancerSettings = DribbleEnhancerSettings
+    getgenv().DribbleSettings = DribbleSettings
 
-    -- state
-    getgenv().DribbleEnhancerDribbling = false
-    local char
-    local stunConn
-    local oldNamecall
-
-    -- setup character attribute hook
     local function setupCharacter(character)
-        char = character
+        local obj = character
 
-        if stunConn then
-            stunConn:Disconnect()
-            stunConn = nil
-        end
+        -- ensure Stunned starts false
+        obj:SetAttribute("Stunned", false)
 
-        char:SetAttribute("Stunned", false)
+        -- hook FireServer to detect Dribble actions
+        local ActionRemote = ReplicatedStorage.Remotes.Server.Action
+        local dribbling = false
 
-        stunConn = char:GetAttributeChangedSignal("Stunned"):Connect(function()
-            if DribbleEnhancerSettings.Enabled and getgenv().DribbleEnhancerDribbling and char:GetAttribute("Stunned") == true then
-                char:SetAttribute("Stunned", false)
+        local old
+        old = hookmetamethod(game, "__namecall", function(self, ...)
+            local method = getnamecallmethod()
+            local args = { ... }
+
+            if self == ActionRemote and method == "FireServer" then
+                local data = args[1]
+                if type(data) == "table" and data.Type then
+                    if data.Type == "Dribble" then
+                        dribbling = true
+                    else
+                        dribbling = false
+                    end
+                end
+            end
+
+            return old(self, ...)
+        end)
+
+        -- only force Stunned to false while dribbling and toggle enabled
+        obj:GetAttributeChangedSignal("Stunned"):Connect(function()
+            if DribbleSettings.AntiStun and dribbling and obj:GetAttribute("Stunned") == true then
+                obj:SetAttribute("Stunned", false)
             end
         end)
     end
 
-    -- Vape UI module (General category)
-    local DribbleEnhancerModule = vape.Categories.General:CreateModule({
+    -- initial character
+    local character = Player.Character or Player.CharacterAdded:Wait()
+    setupCharacter(character)
+
+    -- handle respawns
+    Player.CharacterAdded:Connect(function(char)
+        setupCharacter(char)
+    end)
+
+    -- Vape UI module
+    local DribbleModule = vape.Categories.General:CreateModule({
         Name = "Dribble Enhancer",
         Function = function(callback)
-            DribbleEnhancerSettings.Enabled = callback
-
-            if not callback then
-                getgenv().DribbleEnhancerDribbling = false
-                if stunConn then
-                    stunConn:Disconnect()
-                    stunConn = nil
-                end
-                return
-            end
-
-            if lplr.Character then
-                setupCharacter(lplr.Character)
-            end
-
-            lplr.CharacterAdded:Connect(setupCharacter)
-
-            -- hook FireServer for Dribble detection
-            if not oldNamecall then
-                oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-                    local method = getnamecallmethod()
-                    local args = { ... }
-
-                    if DribbleEnhancerSettings.Enabled and self == ActionRemote and method == "FireServer" then
-                        local data = args[1]
-                        if type(data) == "table" and data.Type then
-                            getgenv().DribbleEnhancerDribbling = (data.Type == "Dribble")
-                        end
-                    end
-
-                    return oldNamecall(self, ...)
-                end)
-            end
+            DribbleSettings.AntiStun = callback
         end,
-        Tooltip = "Prevents you from getting stunned while Dribbling"
+        Tooltip = "Enhances dribbles or some shit idk man."
+    })
+
+    -- Anti-Stun toggle
+    DribbleModule:CreateToggle({
+        Name = "Anti-Stun",
+        Function = function(value)
+            DribbleSettings.AntiStun = value
+        end
     })
 end)
 
 												
-							
 run(function()
 	local DarkDex
 
