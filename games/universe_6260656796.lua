@@ -1261,43 +1261,26 @@ end)
 												
 run(function()
     local Players = game:GetService("Players")
-    local RunService = game:GetService("RunService")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
-    local UIS = game:GetService("UserInputService")
 
     local Player = Players.LocalPlayer
-    local Character = Player.Character or Player.CharacterAdded:Wait()
 
-    -- Backend settings
+    -- backend settings
     local DribbleSettings = getgenv().DribbleSettings or {
-        AntiStun = false,
-        QuickDribbleEnabled = true,
-        DribbleSpeed = 1.5,
-        GlideEnabled = true,
-        GlideMultiplier = 1.25
+        AntiStun = false
     }
     getgenv().DribbleSettings = DribbleSettings
 
-    -- Track original animation speeds and velocity
-    local originalSpeeds = {}
-    local lastVelocity = nil
-    local dribbling = false
+    local function setupCharacter(character)
+        local obj = character
 
-    -- Wait for Action attribute
-    local ActionAttribute
-    repeat task.wait()
-        ActionAttribute = Character:FindFirstChild("Action")
-    until ActionAttribute
+        -- ensure Stunned starts false
+        obj:SetAttribute("Stunned", false)
 
-    -- Wait for Humanoid
-    local Humanoid = Character:WaitForChild("Humanoid")
+        -- hook FireServer to detect Dribble actions
+        local ActionRemote = ReplicatedStorage.Remotes.Server.Action
+        local dribbling = false
 
-    -- Ensure Stunned starts false
-    Character:SetAttribute("Stunned", false)
-
-    -- Hook __namecall once for Dribble detection
-    local ActionRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Server"):WaitForChild("Action")
-    do
         local old
         old = hookmetamethod(game, "__namecall", function(self, ...)
             local method = getnamecallmethod()
@@ -1306,79 +1289,41 @@ run(function()
             if self == ActionRemote and method == "FireServer" then
                 local data = args[1]
                 if type(data) == "table" and data.Type then
-                    dribbling = data.Type == "Dribble"
+                    if data.Type == "Dribble" then
+                        dribbling = true
+                    else
+                        dribbling = false
+                    end
                 end
             end
 
             return old(self, ...)
         end)
-    end
 
-    -- Anti-Stun
-    Character:GetAttributeChangedSignal("Stunned"):Connect(function()
-        if DribbleSettings.AntiStun and dribbling and Character:GetAttribute("Stunned") then
-            Character:SetAttribute("Stunned", false)
-        end
-    end)
-
-    -- Quick Dribble: adjust animation speed
-    local function updateAnimationSpeed()
-        if not DribbleSettings.QuickDribbleEnabled then return end
-        if ActionAttribute.Value == "Dribbling" then
-            for _, track in pairs(Humanoid:GetPlayingAnimationTracks()) do
-                if not originalSpeeds[track] then
-                    originalSpeeds[track] = track.Speed
-                end
-                track.Speed = originalSpeeds[track] * DribbleSettings.DribbleSpeed
+        -- only force Stunned to false while dribbling and toggle enabled
+        obj:GetAttributeChangedSignal("Stunned"):Connect(function()
+            if DribbleSettings.AntiStun and dribbling and obj:GetAttribute("Stunned") == true then
+                obj:SetAttribute("Stunned", false)
             end
-        else
-            for track, speed in pairs(originalSpeeds) do
-                track.Speed = speed
-            end
-            originalSpeeds = {}
-        end
+        end)
     end
 
-    -- Dribble Glide: adjust velocity
-    local function applyGlide()
-        if not DribbleSettings.GlideEnabled then return end
-        if ActionAttribute.Value ~= "Dribbling" then return end
+    -- initial character
+    local character = Player.Character or Player.CharacterAdded:Wait()
+    setupCharacter(character)
 
-        local vel = Character:GetAttribute("Velocity")
-        if not vel or vel.Magnitude == 0 then return end
-
-        if vel ~= lastVelocity then
-            local mul = DribbleSettings.GlideMultiplier
-            local newVel = Vector3.new(vel.X * mul, vel.Y * mul, vel.Z * mul)
-            Character:SetAttribute("Velocity", newVel)
-            lastVelocity = newVel
-        end
-    end
-
-    -- Connect updates
-    ActionAttribute:GetPropertyChangedSignal("Value"):Connect(updateAnimationSpeed)
-    ActionAttribute:GetPropertyChangedSignal("Value"):Connect(applyGlide)
-    Character:GetAttributeChangedSignal("Velocity"):Connect(applyGlide)
-    RunService.RenderStepped:Connect(updateAnimationSpeed)
-
-    -- Handle respawn
+    -- handle respawns
     Player.CharacterAdded:Connect(function(char)
-        Character = char
-        Humanoid = Character:WaitForChild("Humanoid")
-        repeat task.wait() until Character:FindFirstChild("Action")
-        ActionAttribute = Character:FindFirstChild("Action")
-        Character:SetAttribute("Stunned", false)
-        originalSpeeds = {}
-        lastVelocity = nil
-        updateAnimationSpeed()
-        applyGlide()
+        setupCharacter(char)
     end)
 
-    -- Vape UI Module
+    -- Vape UI module
     local DribbleModule = vape.Categories.General:CreateModule({
         Name = "Dribble Enhancer",
-        Function = function(callback) end,
-        Tooltip = "Enhances dribble: Anti-Stun, Quick Dribble, and Glide"
+        Function = function(callback)
+            DribbleSettings.AntiStun = callback
+        end,
+        Tooltip = "Enhances dribbles or some shit idk man."
     })
 
     -- Anti-Stun toggle
@@ -1388,50 +1333,7 @@ run(function()
             DribbleSettings.AntiStun = value
         end
     })
-
-    -- Quick Dribble toggle
-    DribbleModule:CreateToggle({
-        Name = "Quick Dribble",
-        Function = function(value)
-            DribbleSettings.QuickDribbleEnabled = value
-        end
-    })
-
-    -- Quick Dribble speed slider
-    DribbleModule:CreateSlider({
-        Name = "Dribble Speed",
-        Min = 1,
-        Max = 2.75,
-        Default = DribbleSettings.DribbleSpeed,
-        Decimal = 10,
-        Suffix = "x",
-        Function = function(val)
-            DribbleSettings.DribbleSpeed = val
-        end
-    })
-
-    -- Dribble Glide toggle
-    DribbleModule:CreateToggle({
-        Name = "Dribble Glide",
-        Function = function(value)
-            DribbleSettings.GlideEnabled = value
-        end
-    })
-
-    -- Dribble Glide slider
-    DribbleModule:CreateSlider({
-        Name = "Dribble Glide Multiplier",
-        Min = 0.5,
-        Max = 1.25,
-        Default = DribbleSettings.GlideMultiplier,
-        Decimal = 10,
-        Suffix = "x",
-        Function = function(val)
-            DribbleSettings.GlideMultiplier = val
-        end
-    })
 end)
-
 
 												
 run(function()
