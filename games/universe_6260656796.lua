@@ -1259,7 +1259,78 @@ run(function()
     })
 end)
 
-									
+
+run(function()
+    local Players = game:GetService("Players")
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+    local lplr = Players.LocalPlayer
+    local ActionRemote = ReplicatedStorage.Remotes.Server.Action
+
+    -- global state
+    getgenv().AntiStunDribbleEnabled = false
+    getgenv().AntiStunDribbleDribbling = false
+
+    local char
+    local stunConn
+    local oldNamecall
+
+    local function setupCharacter(character)
+        char = character
+
+        if stunConn then
+            stunConn:Disconnect()
+            stunConn = nil
+        end
+
+        char:SetAttribute("Stunned", false)
+
+        stunConn = char:GetAttributeChangedSignal("Stunned"):Connect(function()
+            if getgenv().AntiStunDribbleEnabled and getgenv().AntiStunDribbleDribbling and char:GetAttribute("Stunned") == true then
+                char:SetAttribute("Stunned", false)
+            end
+        end)
+    end
+
+    vape.Combat:CreateModule({
+        Name = "AntiStunDribble",
+        Function = function(callback)
+            getgenv().AntiStunDribbleEnabled = callback
+
+            if not callback then
+                getgenv().AntiStunDribbleDribbling = false
+                if stunConn then
+                    stunConn:Disconnect()
+                    stunConn = nil
+                end
+                return
+            end
+
+            if lplr.Character then
+                setupCharacter(lplr.Character)
+            end
+
+            lplr.CharacterAdded:Connect(setupCharacter)
+
+            if not oldNamecall then
+                oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+                    local method = getnamecallmethod()
+                    local args = { ... }
+
+                    if getgenv().AntiStunDribbleEnabled and self == ActionRemote and method == "FireServer" then
+                        local data = args[1]
+                        if type(data) == "table" and data.Type then
+                            getgenv().AntiStunDribbleDribbling = (data.Type == "Dribble")
+                        end
+                    end
+
+                    return oldNamecall(self, ...)
+                end)
+            end
+        end
+    })
+end)
+												
 							
 run(function()
 	local DarkDex
