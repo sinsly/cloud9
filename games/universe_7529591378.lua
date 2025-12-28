@@ -841,7 +841,7 @@ run(function()
     getgenv().WalkSpeedSettings = WalkSpeedSettings
 
     local AutoGreenSettings = getgenv().AutoGreenSettings or {
-        Enabled = true,
+        Enabled = false,
 
         -- UI values (POSITIVE, converted to negative internally)
         Threshold = {
@@ -866,7 +866,7 @@ run(function()
     -- WALKSPEED MODULE
     -- =========================
     local WalkSpeed = vape.Categories.General:CreateModule({
-        Name = "WalkSpeed",
+        Name = "Walkspeed",
         Tooltip = "Attribute-based WalkSpeed changer",
         Function = function(callback)
             WalkSpeedSettings.Enabled = callback
