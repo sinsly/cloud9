@@ -897,8 +897,8 @@ run(function()
     -- AUTOGREEN MODULE
     -- =========================
     local AutoGreen = vape.Categories.General:CreateModule({
-        Name = "AutoGreen",
-        Tooltip = "Auto release (all meters active)",
+        Name = "Auto Release",
+        Tooltip = "Auto release lol",
         Function = function(callback)
             AutoGreenSettings.Enabled = callback
         end
@@ -1031,17 +1031,18 @@ run(function()
     -- DRIBBLE BOOST MODULE
     -- =========================
     local DribbleBoost = vape.Categories.General:CreateModule({
-        Name = "Dribble Boost",
-        Tooltip = "Boost velocity briefly after dribble"
+        Name = "Dribble Glide",
+        Tooltip = "Weee nigga im gliding."
     })
 
     -- Multiplier slider
     DribbleBoost:CreateSlider({
         Name = "Multiplier",
         Min = 1.01,
-        Max = 1.09,
+        Max = 1.14,
         Default = DribbleBoostSettings.Multiplier,
         Decimal = 100,
+		Suffix = "x",
         Function = function(val)
             DribbleBoostSettings.Multiplier = val
         end
@@ -1051,9 +1052,10 @@ run(function()
     DribbleBoost:CreateSlider({
         Name = "Duration",
         Min = 0.05,
-        Max = 0.2,
+        Max = 0.4,
         Default = DribbleBoostSettings.Duration,
         Decimal = 100,
+		Suffix = "ms",
         Function = function(val)
             DribbleBoostSettings.Duration = val
         end
