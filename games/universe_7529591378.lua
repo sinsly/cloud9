@@ -823,6 +823,7 @@ run(function()
 	end)
 end)
 entitylib.start()
+
 run(function()
     -- services
     local RunService = game:GetService("RunService")
@@ -834,169 +835,88 @@ run(function()
     -- =========================
     -- BACKEND SETTINGS
     -- =========================
-    local WalkSpeedSettings = getgenv().WalkSpeedSettings or {
-        Enabled = false,
-        Value = 16.5
+    local DribbleBoostSettings = getgenv().DribbleBoostSettings or {
+        Multiplier = 1.05,   -- Slider: 1.01 - 1.09
+        Duration = 0.2        -- Slider: 0.05 - 0.2
     }
-    getgenv().WalkSpeedSettings = WalkSpeedSettings
-
-    local AutoGreenSettings = getgenv().AutoGreenSettings or {
-        Enabled = true,
-
-        -- UI values (POSITIVE, converted to negative internally)
-        Threshold = {
-            Vertical = 1.266, -- -> -1.266
-            Rocket   = 0.75,  -- -> -0.75
-            Bat      = 0.80   -- -> -0.80
-        }
-    }
-    getgenv().AutoGreenSettings = AutoGreenSettings
+    getgenv().DribbleBoostSettings = DribbleBoostSettings
 
     -- =========================
     -- REMOTES
     -- =========================
-    local shootRemote =
+    local DribbleRemote =
         ReplicatedStorage
             :WaitForChild("Aero")
             :WaitForChild("AeroRemoteServices")
             :WaitForChild("InputService")
-            :WaitForChild("Shoot")
+            :WaitForChild("Dribble")
+
+    local proxy = workspace:WaitForChild("ProxyCharacter")
+    local movementVelocity = proxy:WaitForChild("MovementVelocity")
 
     -- =========================
-    -- WALKSPEED MODULE
+    -- BOOST LOGIC
     -- =========================
-    local WalkSpeed = vape.Categories.General:CreateModule({
-        Name = "WalkSpeed",
-        Tooltip = "Attribute-based WalkSpeed changer",
-        Function = function(callback)
-            WalkSpeedSettings.Enabled = callback
+    local boosting = false
+    local boostEndTime = 0
 
-            if callback then
-                WalkSpeed:Clean(RunService.RenderStepped:Connect(function()
-                    if not WalkSpeedSettings.Enabled then return end
-                    local char = workspace.Characters:FindFirstChild(lplr.Name)
-                    if char then
-                        char:SetAttribute("WalkSpeed", WalkSpeedSettings.Value)
-                    end
-                end))
+    RunService.RenderStepped:Connect(function()
+        if vape.Categories.General:ModuleEnabled("Dribble Boost") and boosting and os.clock() <= boostEndTime then
+            if movementVelocity.Velocity.Magnitude > 0 then
+                movementVelocity.Velocity = movementVelocity.Velocity.Unit * movementVelocity.Velocity.Magnitude * DribbleBoostSettings.Multiplier
             end
+        elseif boosting then
+            boosting = false
         end
-    })
-
-    WalkSpeed:CreateSlider({
-        Name = "Speed",
-        Min = 5,
-        Max = 30,
-        Default = WalkSpeedSettings.Value,
-        Function = function(val)
-            WalkSpeedSettings.Value = val
-        end
-    })
-
-    -- =========================
-    -- AUTOGREEN MODULE
-    -- =========================
-    local AutoGreen = vape.Categories.General:CreateModule({
-        Name = "AutoGreen",
-        Tooltip = "Auto release (all meters active)",
-        Function = function(callback)
-            AutoGreenSettings.Enabled = callback
-        end
-    })
-
-    -- =========================
-    -- METER THRESHOLD SLIDERS
-    -- =========================
-    local function createThresholdSlider(name)
-        AutoGreen:CreateSlider({
-            Name = name .. " Meter Threshold",
-            Min = 0.60,
-            Max = 1.50,
-            Default = AutoGreenSettings.Threshold[name],
-            Decimal = 100,
-            Suffix = "ms",
-            Function = function(val)
-                AutoGreenSettings.Threshold[name] = val
-            end
-        })
-    end
-
-    createThresholdSlider("Vertical")
-    createThresholdSlider("Rocket")
-    createThresholdSlider("Bat")
-
-    -- =========================
-    -- AUTOGREEN LOGIC
-    -- =========================
-    local fired = false
-    local lastY = {}
-
-    local function getGradient(meter)
-        local fill = meter:FindFirstChild("Meter_Fill")
-        if not fill then return end
-        return fill:FindFirstChild("FillGradient")
-    end
-
-    local METERS = {
-        Vertical = "VerticalMeter",
-        Rocket   = "RocketMeter",
-        Bat      = "BatMeter"
-    }
-
-    RunService.Heartbeat:Connect(function()
-        if not AutoGreenSettings.Enabled then
-            fired = false
-            return
-        end
-
-        local char = workspace.Characters:FindFirstChild(lplr.Name)
-        if not char then return end
-
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if not hrp then return end
-
-        local activeMeter, activeY, activeFireAt
-
-        for name, meterName in pairs(METERS) do
-            local meter = hrp:FindFirstChild(meterName)
-            if meter then
-                local grad = getGradient(meter)
-                if grad then
-                    local y = grad.Offset.Y
-                    lastY[meterName] = lastY[meterName] or y
-
-                    -- detect active moving meter
-                    if math.abs(y - lastY[meterName]) > 0.0005 then
-                        activeMeter = meterName
-                        activeY = y
-                        activeFireAt = -AutoGreenSettings.Threshold[name]
-                        break
-                    end
-
-                    lastY[meterName] = y
-                end
-            end
-        end
-
-        if not activeMeter then
-            fired = false
-            return
-        end
-
-        -- fire exactly once when crossing threshold
-        if not fired and lastY[activeMeter] > activeFireAt and activeY <= activeFireAt then
-            fired = true
-            shootRemote:FireServer({ Shoot = false })
-        end
-
-        -- reset once meter rises again
-        if activeY > -0.1 then
-            fired = false
-        end
-
-        lastY[activeMeter] = activeY
     end)
+
+    -- Hook Dribble FireServer
+    local mt = getrawmetatable(game)
+    setreadonly(mt, false)
+    local oldNamecall = mt.__namecall
+    mt.__namecall = newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+        if self == DribbleRemote and method == "FireServer" then
+            if vape.Categories.General:ModuleEnabled("Dribble Boost") and not boosting then
+                boosting = true
+                boostEndTime = os.clock() + DribbleBoostSettings.Duration
+            end
+        end
+        return oldNamecall(self, ...)
+    end)
+    setreadonly(mt, true)
+
+    -- =========================
+    -- DRIBBLE BOOST MODULE
+    -- =========================
+    local DribbleBoost = vape.Categories.General:CreateModule({
+        Name = "Dribble Boost",
+        Tooltip = "Boost velocity briefly after dribble"
+    })
+
+    DribbleBoost:CreateSlider({
+        Name = "Multiplier",
+        Min = 1.01,
+        Max = 1.09,
+        Default = DribbleBoostSettings.Multiplier,
+        Decimal = 100,
+        Function = function(val)
+            DribbleBoostSettings.Multiplier = val
+        end
+    })
+
+    DribbleBoost:CreateSlider({
+        Name = "Duration",
+        Min = 0.05,
+        Max = 0.2,
+        Default = DribbleBoostSettings.Duration,
+        Decimal = 100,
+        Function = function(val)
+            DribbleBoostSettings.Duration = val
+        end
+    })
 end)
+
 
 												
 run(function()
