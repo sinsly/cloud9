@@ -997,8 +997,7 @@ run(function()
         lastY[activeMeter] = activeY
     end)
 end)
-
-				run(function()
+run(function()
     -- services
     local RunService = game:GetService("RunService")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -1027,38 +1026,6 @@ end)
 
     local proxy = workspace:WaitForChild("ProxyCharacter")
     local movementVelocity = proxy:WaitForChild("MovementVelocity")
-
-    -- =========================
-    -- BOOST LOGIC
-    -- =========================
-    local boosting = false
-    local boostEndTime = 0
-
-    RunService.RenderStepped:Connect(function()
-        if vape.Categories.General:ModuleEnabled("Dribble Boost") and boosting and os.clock() <= boostEndTime then
-            if movementVelocity.Velocity.Magnitude > 0 then
-                movementVelocity.Velocity = movementVelocity.Velocity.Unit * movementVelocity.Velocity.Magnitude * DribbleBoostSettings.Multiplier
-            end
-        elseif boosting then
-            boosting = false
-        end
-    end)
-
-    -- Hook Dribble FireServer
-    local mt = getrawmetatable(game)
-    setreadonly(mt, false)
-    local oldNamecall = mt.__namecall
-    mt.__namecall = newcclosure(function(self, ...)
-        local method = getnamecallmethod()
-        if self == DribbleRemote and method == "FireServer" then
-            if vape.Categories.General:ModuleEnabled("Dribble Boost") and not boosting then
-                boosting = true
-                boostEndTime = os.clock() + DribbleBoostSettings.Duration
-            end
-        end
-        return oldNamecall(self, ...)
-    end)
-    setreadonly(mt, true)
 
     -- =========================
     -- DRIBBLE BOOST MODULE
@@ -1091,6 +1058,38 @@ end)
             DribbleBoostSettings.Duration = val
         end
     })
+
+    -- =========================
+    -- BOOST LOGIC
+    -- =========================
+    local boosting = false
+    local boostEndTime = 0
+
+    RunService.RenderStepped:Connect(function()
+        if DribbleBoost.Enabled and boosting and os.clock() <= boostEndTime then
+            if movementVelocity.Velocity.Magnitude > 0 then
+                movementVelocity.Velocity = movementVelocity.Velocity.Unit * movementVelocity.Velocity.Magnitude * DribbleBoostSettings.Multiplier
+            end
+        elseif boosting then
+            boosting = false
+        end
+    end)
+
+    -- Hook Dribble FireServer
+    local mt = getrawmetatable(game)
+    setreadonly(mt, false)
+    local oldNamecall = mt.__namecall
+    mt.__namecall = newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+        if self == DribbleRemote and method == "FireServer" then
+            if DribbleBoost.Enabled and not boosting then
+                boosting = true
+                boostEndTime = os.clock() + DribbleBoostSettings.Duration
+            end
+        end
+        return oldNamecall(self, ...)
+    end)
+    setreadonly(mt, true)
 end)
 
 												
