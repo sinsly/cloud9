@@ -823,8 +823,182 @@ run(function()
 	end)
 end)
 entitylib.start()
-
 run(function()
+    -- services
+    local RunService = game:GetService("RunService")
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local Players = game:GetService("Players")
+
+    local lplr = Players.LocalPlayer
+
+    -- =========================
+    -- BACKEND SETTINGS
+    -- =========================
+    local WalkSpeedSettings = getgenv().WalkSpeedSettings or {
+        Enabled = false,
+        Value = 16.5
+    }
+    getgenv().WalkSpeedSettings = WalkSpeedSettings
+
+    local AutoGreenSettings = getgenv().AutoGreenSettings or {
+        Enabled = true,
+
+        -- UI values (POSITIVE, converted to negative internally)
+        Threshold = {
+            Vertical = 1.266, -- -> -1.266
+            Rocket   = 0.75,  -- -> -0.75
+            Bat      = 0.80   -- -> -0.80
+        }
+    }
+    getgenv().AutoGreenSettings = AutoGreenSettings
+
+    -- =========================
+    -- REMOTES
+    -- =========================
+    local shootRemote =
+        ReplicatedStorage
+            :WaitForChild("Aero")
+            :WaitForChild("AeroRemoteServices")
+            :WaitForChild("InputService")
+            :WaitForChild("Shoot")
+
+    -- =========================
+    -- WALKSPEED MODULE
+    -- =========================
+    local WalkSpeed = vape.Categories.General:CreateModule({
+        Name = "WalkSpeed",
+        Tooltip = "Attribute-based WalkSpeed changer",
+        Function = function(callback)
+            WalkSpeedSettings.Enabled = callback
+
+            if callback then
+                WalkSpeed:Clean(RunService.RenderStepped:Connect(function()
+                    if not WalkSpeedSettings.Enabled then return end
+                    local char = workspace.Characters:FindFirstChild(lplr.Name)
+                    if char then
+                        char:SetAttribute("WalkSpeed", WalkSpeedSettings.Value)
+                    end
+                end))
+            end
+        end
+    })
+
+    WalkSpeed:CreateSlider({
+        Name = "Speed",
+        Min = 5,
+        Max = 30,
+        Default = WalkSpeedSettings.Value,
+        Function = function(val)
+            WalkSpeedSettings.Value = val
+        end
+    })
+
+    -- =========================
+    -- AUTOGREEN MODULE
+    -- =========================
+    local AutoGreen = vape.Categories.General:CreateModule({
+        Name = "AutoGreen",
+        Tooltip = "Auto release (all meters active)",
+        Function = function(callback)
+            AutoGreenSettings.Enabled = callback
+        end
+    })
+
+    -- =========================
+    -- METER THRESHOLD SLIDERS
+    -- =========================
+    local function createThresholdSlider(name)
+        AutoGreen:CreateSlider({
+            Name = name .. " Meter Threshold",
+            Min = 0.60,
+            Max = 1.50,
+            Default = AutoGreenSettings.Threshold[name],
+            Decimal = 100,
+            Suffix = "ms",
+            Function = function(val)
+                AutoGreenSettings.Threshold[name] = val
+            end
+        })
+    end
+
+    createThresholdSlider("Vertical")
+    createThresholdSlider("Rocket")
+    createThresholdSlider("Bat")
+
+    -- =========================
+    -- AUTOGREEN LOGIC
+    -- =========================
+    local fired = false
+    local lastY = {}
+
+    local function getGradient(meter)
+        local fill = meter:FindFirstChild("Meter_Fill")
+        if not fill then return end
+        return fill:FindFirstChild("FillGradient")
+    end
+
+    local METERS = {
+        Vertical = "VerticalMeter",
+        Rocket   = "RocketMeter",
+        Bat      = "BatMeter"
+    }
+
+    RunService.Heartbeat:Connect(function()
+        if not AutoGreenSettings.Enabled then
+            fired = false
+            return
+        end
+
+        local char = workspace.Characters:FindFirstChild(lplr.Name)
+        if not char then return end
+
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+
+        local activeMeter, activeY, activeFireAt
+
+        for name, meterName in pairs(METERS) do
+            local meter = hrp:FindFirstChild(meterName)
+            if meter then
+                local grad = getGradient(meter)
+                if grad then
+                    local y = grad.Offset.Y
+                    lastY[meterName] = lastY[meterName] or y
+
+                    -- detect active moving meter
+                    if math.abs(y - lastY[meterName]) > 0.0005 then
+                        activeMeter = meterName
+                        activeY = y
+                        activeFireAt = -AutoGreenSettings.Threshold[name]
+                        break
+                    end
+
+                    lastY[meterName] = y
+                end
+            end
+        end
+
+        if not activeMeter then
+            fired = false
+            return
+        end
+
+        -- fire exactly once when crossing threshold
+        if not fired and lastY[activeMeter] > activeFireAt and activeY <= activeFireAt then
+            fired = true
+            shootRemote:FireServer({ Shoot = false })
+        end
+
+        -- reset once meter rises again
+        if activeY > -0.1 then
+            fired = false
+        end
+
+        lastY[activeMeter] = activeY
+    end)
+end)
+
+				run(function()
     -- services
     local RunService = game:GetService("RunService")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -894,6 +1068,7 @@ run(function()
         Tooltip = "Boost velocity briefly after dribble"
     })
 
+    -- Multiplier slider
     DribbleBoost:CreateSlider({
         Name = "Multiplier",
         Min = 1.01,
@@ -905,6 +1080,7 @@ run(function()
         end
     })
 
+    -- Duration slider
     DribbleBoost:CreateSlider({
         Name = "Duration",
         Min = 0.05,
@@ -916,7 +1092,6 @@ run(function()
         end
     })
 end)
-
 
 												
 run(function()
