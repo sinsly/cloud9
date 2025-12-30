@@ -843,13 +843,12 @@ run(function()
     local AutoGreenSettings = getgenv().AutoGreenSettings or {
         Enabled = false,
         PingBased = true,
-
-        VerticalMeter = -1.15,
-        BatMeter      = -0.60,
-        RocketMeter   = -0.60,
-        RobloxMeter   =  0.60,
-        HoopMeter     =  0.70,
-        NoMeter       = -0.70
+        VerticalMeter = 1.15,
+        BatMeter      = 0.60,
+        RocketMeter   = 0.60,
+        RobloxMeter   = 0.60,
+        HoopMeter     = 0.70,
+        NoMeter       = 0.70
     }
     getgenv().AutoGreenSettings = AutoGreenSettings
 
@@ -859,6 +858,8 @@ run(function()
     local shootRemote = ReplicatedStorage:WaitForChild("RemoteEvent")
 
     local function fireShoot(state)
+        -- Debug print to confirm firing
+        print("[AutoGreen] Firing RemoteEvent, Shoot =", state)
         shootRemote:FireServer({
             {
                 "5",
@@ -889,9 +890,8 @@ run(function()
     WalkSpeed:CreateSlider({
         Name = "Speed",
         Flag = "WalkSpeed_Value",
-        Min = 14,
+        Min = 5,
         Max = 30,
-		Decimal = 100,
         Default = WalkSpeedSettings.Value,
         Function = function(v)
             WalkSpeedSettings.Value = v
@@ -919,74 +919,63 @@ run(function()
     })
 
     -- =========================
-    -- AUTOGREEN SLIDERS (EXPLICIT)
+    -- SLIDERS (POSITIVE UI VALUES)
     -- =========================
     AutoGreen:CreateSlider({
         Name = "Vertical Meter",
         Flag = "AutoGreen_Vertical",
-        Min = -1.5,
-        Max = -0.5,
-								        Decimal = 1000,
+        Min = 0.5,
+        Max = 1.5,
         Default = AutoGreenSettings.VerticalMeter,
         Function = function(v)
             AutoGreenSettings.VerticalMeter = v
         end
     })
-
     AutoGreen:CreateSlider({
         Name = "Bat Meter",
         Flag = "AutoGreen_Bat",
-        Min = -1.0,
-        Max = -0.2,
-									        Decimal = 1000,
+        Min = 0.2,
+        Max = 1.0,
         Default = AutoGreenSettings.BatMeter,
         Function = function(v)
             AutoGreenSettings.BatMeter = v
         end
     })
-
     AutoGreen:CreateSlider({
         Name = "Rocket Meter",
         Flag = "AutoGreen_Rocket",
-        Min = -1.0,
-        Max = -0.2,
-										        Decimal = 1000,
+        Min = 0.2,
+        Max = 1.0,
         Default = AutoGreenSettings.RocketMeter,
         Function = function(v)
             AutoGreenSettings.RocketMeter = v
         end
     })
-
     AutoGreen:CreateSlider({
         Name = "Roblox Meter",
         Flag = "AutoGreen_Roblox",
         Min = 0.2,
         Max = 1.0,
-											        Decimal = 1000,
         Default = AutoGreenSettings.RobloxMeter,
         Function = function(v)
             AutoGreenSettings.RobloxMeter = v
         end
     })
-
     AutoGreen:CreateSlider({
         Name = "Hoop Meter",
         Flag = "AutoGreen_Hoop",
         Min = 0.2,
         Max = 1.0,
-												Decimal = 1000,
         Default = AutoGreenSettings.HoopMeter,
         Function = function(v)
             AutoGreenSettings.HoopMeter = v
         end
     })
-
     AutoGreen:CreateSlider({
         Name = "No Meter",
         Flag = "AutoGreen_NoMeter",
-        Min = -1.0,
-        Max = -0.2,
-													Decimal = 1000,
+        Min = 0.2,
+        Max = 1.0,
         Default = AutoGreenSettings.NoMeter,
         Function = function(v)
             AutoGreenSettings.NoMeter = v
@@ -999,7 +988,6 @@ run(function()
     local function getPing()
         return Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
     end
-
     local function getPingOffset(ping)
         if ping < 100 then
             return -0.08
@@ -1038,12 +1026,12 @@ run(function()
         local pingOffset = AutoGreenSettings.PingBased and getPingOffset(ping) or 0
 
         local meters = {
-            VerticalMeter = AutoGreenSettings.VerticalMeter,
-            BatMeter      = AutoGreenSettings.BatMeter,
-            RocketMeter   = AutoGreenSettings.RocketMeter,
-            RobloxMeter   = AutoGreenSettings.RobloxMeter,
-            HoopMeter     = AutoGreenSettings.HoopMeter,
-            NoMeter       = AutoGreenSettings.NoMeter
+            VerticalMeter = -AutoGreenSettings.VerticalMeter,
+            BatMeter      = -AutoGreenSettings.BatMeter,
+            RocketMeter   = -AutoGreenSettings.RocketMeter,
+            RobloxMeter   =  AutoGreenSettings.RobloxMeter,
+            HoopMeter     =  AutoGreenSettings.HoopMeter,
+            NoMeter       = -AutoGreenSettings.NoMeter
         }
 
         local activeName, activeGrad, fireAt
@@ -1056,6 +1044,7 @@ run(function()
                     local y = grad.Offset.Y
                     lastY[name] = lastY[name] or y
 
+                    -- detect moving meter
                     if math.abs(y - lastY[name]) > 0.0005 then
                         activeName = name
                         activeGrad = grad
@@ -1078,6 +1067,8 @@ run(function()
         if not fired and lastY[activeName] > fireAt and y <= fireAt then
             fired = true
             fireShoot(false)
+            -- Debug print for confirmation
+            print("[AutoGreen] Fired meter:", activeName, "FireAt:", fireAt, "Y:", y)
         end
 
         if y > -0.1 then
