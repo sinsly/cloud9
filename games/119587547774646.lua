@@ -824,56 +824,77 @@ run(function()
 end)
 entitylib.start()
 run(function()
-    -- services
     local RunService = game:GetService("RunService")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
     local Players = game:GetService("Players")
+    local Stats = game:GetService("Stats")
 
     local lplr = Players.LocalPlayer
 
     -- =========================
-    -- BACKEND SETTINGS
+    -- SETTINGS
     -- =========================
-    local WalkSpeedSettings = getgenv().WalkSpeedSettings or {
+    getgenv().WalkSpeedSettings = getgenv().WalkSpeedSettings or {
         Enabled = false,
         Value = 16.5
     }
-    getgenv().WalkSpeedSettings = WalkSpeedSettings
 
-    local AutoGreenSettings = getgenv().AutoGreenSettings or {
+    getgenv().AutoGreenSettings = getgenv().AutoGreenSettings or {
         Enabled = false,
-
-        -- UI values (POSITIVE, converted to negative internally)
-        Threshold = {
-            Vertical = 1.266, -- -> -1.266
-            Rocket   = 0.75,  -- -> -0.75
-            Bat      = 0.80   -- -> -0.80
+        Thresholds = {
+            VerticalMeter = 1.266,
+            RocketMeter   = 0.75,
+            BatMeter      = 0.80,
+            RobloxMeter   = 0.80,
+            HoopMeter     = 0.80,
+            NoMeter       = 0.80
         }
     }
-    getgenv().AutoGreenSettings = AutoGreenSettings
 
     -- =========================
-    -- REMOTES
+    -- REMOTE
     -- =========================
-    local shootRemote =
-        ReplicatedStorage
-            :WaitForChild("Aero")
-            :WaitForChild("AeroRemoteServices")
-            :WaitForChild("InputService")
-            :WaitForChild("Shoot")
+    local shootRemote = ReplicatedStorage:WaitForChild("RemoteEvent")
+
+    local function fireShoot(state)
+        shootRemote:FireServer({
+            {
+                "5",
+                {
+                    Shoot = state
+                }
+            }
+        })
+    end
+
+    -- =========================
+    -- PING OFFSET
+    -- =========================
+    local function getPing()
+        return Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+    end
+
+    local function pingOffset(ping)
+        if ping < 100 then
+            return -0.02
+        elseif ping < 200 then
+            return 0
+        else
+            return 0.03
+        end
+    end
 
     -- =========================
     -- WALKSPEED MODULE
     -- =========================
     local WalkSpeed = vape.Categories.General:CreateModule({
-        Name = "Walkspeed",
-        Tooltip = "Attribute-based WalkSpeed changer",
-        Function = function(callback)
-            WalkSpeedSettings.Enabled = callback
+        Name = "WalkSpeed",
+        Tooltip = "Attribute WalkSpeed changer",
+        Function = function(cb)
+            WalkSpeedSettings.Enabled = cb
 
-            if callback then
+            if cb then
                 WalkSpeed:Clean(RunService.RenderStepped:Connect(function()
-                    if not WalkSpeedSettings.Enabled then return end
                     local char = workspace.Characters:FindFirstChild(lplr.Name)
                     if char then
                         char:SetAttribute("WalkSpeed", WalkSpeedSettings.Value)
@@ -898,32 +919,32 @@ run(function()
     -- =========================
     local AutoGreen = vape.Categories.General:CreateModule({
         Name = "Auto Release",
-        Tooltip = "Auto release lol",
-        Function = function(callback)
-            AutoGreenSettings.Enabled = callback
+        Tooltip = "Meter-based auto release",
+        Function = function(cb)
+            AutoGreenSettings.Enabled = cb
         end
     })
 
     -- =========================
-    -- METER THRESHOLD SLIDERS
+    -- AUTOGREEN SLIDERS
     -- =========================
-    local function createThresholdSlider(name)
+    local function createSlider(name)
         AutoGreen:CreateSlider({
-            Name = name .. " Meter Threshold",
+            Name = name:gsub("Meter", "") .. " Release",
             Min = 0.60,
             Max = 1.50,
-            Default = AutoGreenSettings.Threshold[name],
-            Decimal = 100,
+            Default = AutoGreenSettings.Thresholds[name],
+            Decimal = 1000,
             Suffix = "ms",
             Function = function(val)
-                AutoGreenSettings.Threshold[name] = val
+                AutoGreenSettings.Thresholds[name] = val
             end
         })
     end
 
-    createThresholdSlider("Vertical")
-    createThresholdSlider("Rocket")
-    createThresholdSlider("Bat")
+    for meterName in pairs(AutoGreenSettings.Thresholds) do
+        createSlider(meterName)
+    end
 
     -- =========================
     -- AUTOGREEN LOGIC
@@ -937,13 +958,7 @@ run(function()
         return fill:FindFirstChild("FillGradient")
     end
 
-    local METERS = {
-        Vertical = "VerticalMeter",
-        Rocket   = "RocketMeter",
-        Bat      = "BatMeter"
-    }
-
-    RunService.Heartbeat:Connect(function()
+    AutoGreen:Clean(RunService.Heartbeat:Connect(function()
         if not AutoGreenSettings.Enabled then
             fired = false
             return
@@ -955,48 +970,49 @@ run(function()
         local hrp = char:FindFirstChild("HumanoidRootPart")
         if not hrp then return end
 
-        local activeMeter, activeY, activeFireAt
+        local ping = math.clamp(getPing(), 0, 300)
+        local offset = pingOffset(ping)
 
-        for name, meterName in pairs(METERS) do
-            local meter = hrp:FindFirstChild(meterName)
+        local activeName, activeY, fireAt
+
+        for name, sliderVal in pairs(AutoGreenSettings.Thresholds) do
+            local meter = hrp:FindFirstChild(name)
             if meter then
                 local grad = getGradient(meter)
                 if grad then
                     local y = grad.Offset.Y
-                    lastY[meterName] = lastY[meterName] or y
+                    lastY[name] = lastY[name] or y
 
-                    -- detect active moving meter
-                    if math.abs(y - lastY[meterName]) > 0.0005 then
-                        activeMeter = meterName
+                    if math.abs(y - lastY[name]) > 0.0005 then
+                        activeName = name
                         activeY = y
-                        activeFireAt = -AutoGreenSettings.Threshold[name]
+                        fireAt = -(sliderVal + offset)
                         break
                     end
 
-                    lastY[meterName] = y
+                    lastY[name] = y
                 end
             end
         end
 
-        if not activeMeter then
+        if not activeName then
             fired = false
             return
         end
 
-        -- fire exactly once when crossing threshold
-        if not fired and lastY[activeMeter] > activeFireAt and activeY <= activeFireAt then
+        if not fired and lastY[activeName] > fireAt and activeY <= fireAt then
             fired = true
-            shootRemote:FireServer({ Shoot = false })
+            fireShoot(false)
         end
 
-        -- reset once meter rises again
         if activeY > -0.1 then
             fired = false
         end
 
-        lastY[activeMeter] = activeY
-    end)
+        lastY[activeName] = activeY
+    end))
 end)
+
 run(function()
     -- services
     local RunService = game:GetService("RunService")
