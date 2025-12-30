@@ -831,10 +831,23 @@ run(function()
 
     local lplr = Players.LocalPlayer
 
-    getgenv().AutoGreenSettings = getgenv().AutoGreenSettings or {
+    -- =========================
+    -- BACKEND SETTINGS
+    -- =========================
+    local WalkSpeedSettings = getgenv().WalkSpeedSettings or {
+        Enabled = false,
+        Value = 16.5
+    }
+    getgenv().WalkSpeedSettings = WalkSpeedSettings
+
+    local AutoGreenSettings = getgenv().AutoGreenSettings or {
         Enabled = false
     }
+    getgenv().AutoGreenSettings = AutoGreenSettings
 
+    -- =========================
+    -- REMOTES
+    -- =========================
     local shootRemote = ReplicatedStorage:WaitForChild("RemoteEvent")
 
     local function fireShoot(state)
@@ -848,6 +861,51 @@ run(function()
         })
     end
 
+    -- =========================
+    -- WALKSPEED MODULE (UNCHANGED)
+    -- =========================
+    local WalkSpeed = vape.Categories.General:CreateModule({
+        Name = "Walkspeed",
+        Tooltip = "Attribute-based WalkSpeed changer",
+        Function = function(callback)
+            WalkSpeedSettings.Enabled = callback
+
+            if callback then
+                WalkSpeed:Clean(RunService.RenderStepped:Connect(function()
+                    if not WalkSpeedSettings.Enabled then return end
+                    local char = workspace.Characters:FindFirstChild(lplr.Name)
+                    if char then
+                        char:SetAttribute("WalkSpeed", WalkSpeedSettings.Value)
+                    end
+                end))
+            end
+        end
+    })
+
+    WalkSpeed:CreateSlider({
+        Name = "Speed",
+        Min = 5,
+        Max = 30,
+        Default = WalkSpeedSettings.Value,
+        Function = function(val)
+            WalkSpeedSettings.Value = val
+        end
+    })
+
+    -- =========================
+    -- AUTOGREEN MODULE
+    -- =========================
+    local AutoGreen = vape.Categories.General:CreateModule({
+        Name = "Auto Release",
+        Tooltip = "Ping-based auto release",
+        Function = function(callback)
+            AutoGreenSettings.Enabled = callback
+        end
+    })
+
+    -- =========================
+    -- PING + FIRE VALUES
+    -- =========================
     local function getPing()
         return Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
     end
@@ -883,6 +941,9 @@ run(function()
         end
     end
 
+    -- =========================
+    -- AUTOGREEN LOGIC
+    -- =========================
     local fired = false
     local lastY = {}
 
@@ -892,17 +953,8 @@ run(function()
         return fill:FindFirstChild("FillGradient")
     end
 
-    local AutoGreen = vape.Categories.General:CreateModule({
-        Name = "Auto Release",
-        Tooltip = "Ping-based auto green",
-        Function = function(callback)
-            getgenv().AutoGreenSettings.Enabled = callback
-            fired = false
-        end
-    })
-
-    AutoGreen:Clean(RunService.Heartbeat:Connect(function()
-        if not getgenv().AutoGreenSettings.Enabled then
+    RunService.Heartbeat:Connect(function()
+        if not AutoGreenSettings.Enabled then
             fired = false
             return
         end
@@ -916,9 +968,9 @@ run(function()
         local hrp = char:FindFirstChild("HumanoidRootPart")
         if not hrp then return end
 
-        local activeName, activeY, fireAt
+        local activeName, activeGrad, activeFireAt
 
-        for name, threshold in pairs(FIRE_AT) do
+        for name, fireAt in pairs(FIRE_AT) do
             local meter = hrp:FindFirstChild(name)
             if meter then
                 local grad = getGradient(meter)
@@ -928,8 +980,8 @@ run(function()
 
                     if math.abs(y - lastY[name]) > 0.0005 then
                         activeName = name
-                        activeY = y
-                        fireAt = threshold
+                        activeGrad = grad
+                        activeFireAt = fireAt
                         break
                     end
 
@@ -938,23 +990,26 @@ run(function()
             end
         end
 
-        if not activeName then
+        if not activeGrad then
             fired = false
             return
         end
 
-        if not fired and lastY[activeName] > fireAt and activeY <= fireAt then
+        local y = activeGrad.Offset.Y
+
+        if not fired and lastY[activeName] > activeFireAt and y <= activeFireAt then
             fired = true
             fireShoot(false)
         end
 
-        if activeY > -0.1 then
+        if y > -0.1 then
             fired = false
         end
 
-        lastY[activeName] = activeY
-    end))
+        lastY[activeName] = y
+    end)
 end)
+
   --[[
 run(function()
     -- services
