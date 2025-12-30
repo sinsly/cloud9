@@ -841,12 +841,21 @@ run(function()
     getgenv().WalkSpeedSettings = WalkSpeedSettings
 
     local AutoGreenSettings = getgenv().AutoGreenSettings or {
-        Enabled = false
+        Enabled = false,
+        PingBased = true,
+        Base = {
+            VerticalMeter = -1.15,
+            BatMeter      = -0.60,
+            RocketMeter   = -0.60,
+            RobloxMeter   =  0.60,
+            HoopMeter     =  0.70,
+            NoMeter       = -0.70
+        }
     }
     getgenv().AutoGreenSettings = AutoGreenSettings
 
     -- =========================
-    -- REMOTES
+    -- REMOTE
     -- =========================
     local shootRemote = ReplicatedStorage:WaitForChild("RemoteEvent")
 
@@ -869,7 +878,6 @@ run(function()
         Tooltip = "Attribute-based WalkSpeed changer",
         Function = function(callback)
             WalkSpeedSettings.Enabled = callback
-
             if callback then
                 WalkSpeed:Clean(RunService.RenderStepped:Connect(function()
                     if not WalkSpeedSettings.Enabled then return end
@@ -887,8 +895,8 @@ run(function()
         Min = 5,
         Max = 30,
         Default = WalkSpeedSettings.Value,
-        Function = function(val)
-            WalkSpeedSettings.Value = val
+        Function = function(v)
+            WalkSpeedSettings.Value = v
         end
     })
 
@@ -897,47 +905,57 @@ run(function()
     -- =========================
     local AutoGreen = vape.Categories.General:CreateModule({
         Name = "Auto Release",
-        Tooltip = "Ping-based auto release",
+        Tooltip = "Ping adaptive auto release",
         Function = function(callback)
             AutoGreenSettings.Enabled = callback
         end
     })
 
+    AutoGreen:CreateToggle({
+        Name = "Ping Based",
+        Default = AutoGreenSettings.PingBased,
+        Function = function(v)
+            AutoGreenSettings.PingBased = v
+        end
+    })
+
     -- =========================
-    -- PING + FIRE VALUES
+    -- SLIDERS
+    -- =========================
+    local function createSlider(name, min, max)
+        AutoGreen:CreateSlider({
+            Name = name,
+            Min = min,
+            Max = max,
+            Default = AutoGreenSettings.Base[name],
+            Decimal = 1000,
+            Function = function(v)
+                AutoGreenSettings.Base[name] = v
+            end
+        })
+    end
+
+    createSlider("VerticalMeter", -1.5, -0.5)
+    createSlider("BatMeter", -1.0, -0.2)
+    createSlider("RocketMeter", -1.0, -0.2)
+    createSlider("RobloxMeter", 0.2, 1.0)
+    createSlider("HoopMeter", 0.2, 1.0)
+    createSlider("NoMeter", -1.0, -0.2)
+
+    -- =========================
+    -- PING OFFSET
     -- =========================
     local function getPing()
         return Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
     end
 
-    local function getFireAtByPing(ping)
+    local function getPingOffset(ping)
         if ping < 100 then
-            return {
-                VerticalMeter = -1.27945,
-                BatMeter      = -0.795,
-                RobloxMeter   =  0.81,
-                RocketMeter   = -0.745,
-                HoopMeter     =  0.94,
-                NoMeter       = -0.86
-            }
+            return -0.08
         elseif ping < 200 then
-            return {
-                VerticalMeter = -1.00,
-                BatMeter      = -0.5945,
-                RobloxMeter   =  0.58,
-                RocketMeter   = -0.5695,
-                HoopMeter     =  0.63,
-                NoMeter       = -0.70
-            }
+            return 0
         else
-            return {
-                VerticalMeter = -0.85,
-                BatMeter      = -0.42,
-                RobloxMeter   =  0.41,
-                RocketMeter   = -0.41,
-                HoopMeter     =  0.46,
-                NoMeter       = -0.42
-            }
+            return 0.08
         end
     end
 
@@ -959,18 +977,18 @@ run(function()
             return
         end
 
-        local ping = math.clamp(getPing(), 0, 300)
-        local FIRE_AT = getFireAtByPing(ping)
-
         local char = workspace.Characters:FindFirstChild(lplr.Name)
         if not char then return end
 
         local hrp = char:FindFirstChild("HumanoidRootPart")
         if not hrp then return end
 
-        local activeName, activeGrad, activeFireAt
+        local ping = math.clamp(getPing(), 0, 300)
+        local pingOffset = AutoGreenSettings.PingBased and getPingOffset(ping) or 0
 
-        for name, fireAt in pairs(FIRE_AT) do
+        local activeName, activeGrad, fireAt
+
+        for name, base in pairs(AutoGreenSettings.Base) do
             local meter = hrp:FindFirstChild(name)
             if meter then
                 local grad = getGradient(meter)
@@ -981,7 +999,7 @@ run(function()
                     if math.abs(y - lastY[name]) > 0.0005 then
                         activeName = name
                         activeGrad = grad
-                        activeFireAt = fireAt
+                        fireAt = base + pingOffset
                         break
                     end
 
@@ -997,7 +1015,7 @@ run(function()
 
         local y = activeGrad.Offset.Y
 
-        if not fired and lastY[activeName] > activeFireAt and y <= activeFireAt then
+        if not fired and lastY[activeName] > fireAt and y <= fireAt then
             fired = true
             fireShoot(false)
         end
