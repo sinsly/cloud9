@@ -832,7 +832,7 @@ run(function()
     local lplr = Players.LocalPlayer
 
     -- =========================
-    -- BACKEND SETTINGS
+    -- SETTINGS
     -- =========================
     local WalkSpeedSettings = getgenv().WalkSpeedSettings or {
         Enabled = false,
@@ -843,14 +843,13 @@ run(function()
     local AutoGreenSettings = getgenv().AutoGreenSettings or {
         Enabled = false,
         PingBased = true,
-        Base = {
-            VerticalMeter = -1.15,
-            BatMeter      = -0.60,
-            RocketMeter   = -0.60,
-            RobloxMeter   =  0.60,
-            HoopMeter     =  0.70,
-            NoMeter       = -0.70
-        }
+
+        VerticalMeter = -1.15,
+        BatMeter      = -0.60,
+        RocketMeter   = -0.60,
+        RobloxMeter   =  0.60,
+        HoopMeter     =  0.70,
+        NoMeter       = -0.70
     }
     getgenv().AutoGreenSettings = AutoGreenSettings
 
@@ -863,24 +862,21 @@ run(function()
         shootRemote:FireServer({
             {
                 "5",
-                {
-                    Shoot = state
-                }
+                { Shoot = state }
             }
         })
     end
 
     -- =========================
-    -- WALKSPEED MODULE (UNCHANGED)
+    -- WALKSPEED (UNCHANGED)
     -- =========================
     local WalkSpeed = vape.Categories.General:CreateModule({
         Name = "Walkspeed",
         Tooltip = "Attribute-based WalkSpeed changer",
-        Function = function(callback)
-            WalkSpeedSettings.Enabled = callback
-            if callback then
+        Function = function(cb)
+            WalkSpeedSettings.Enabled = cb
+            if cb then
                 WalkSpeed:Clean(RunService.RenderStepped:Connect(function()
-                    if not WalkSpeedSettings.Enabled then return end
                     local char = workspace.Characters:FindFirstChild(lplr.Name)
                     if char then
                         char:SetAttribute("WalkSpeed", WalkSpeedSettings.Value)
@@ -892,6 +888,7 @@ run(function()
 
     WalkSpeed:CreateSlider({
         Name = "Speed",
+        Flag = "WalkSpeed_Value",
         Min = 5,
         Max = 30,
         Default = WalkSpeedSettings.Value,
@@ -906,13 +903,14 @@ run(function()
     local AutoGreen = vape.Categories.General:CreateModule({
         Name = "Auto Release",
         Tooltip = "Ping adaptive auto release",
-        Function = function(callback)
-            AutoGreenSettings.Enabled = callback
+        Function = function(cb)
+            AutoGreenSettings.Enabled = cb
         end
     })
 
     AutoGreen:CreateToggle({
         Name = "Ping Based",
+        Flag = "AutoGreen_PingBased",
         Default = AutoGreenSettings.PingBased,
         Function = function(v)
             AutoGreenSettings.PingBased = v
@@ -920,27 +918,73 @@ run(function()
     })
 
     -- =========================
-    -- SLIDERS
+    -- AUTOGREEN SLIDERS (EXPLICIT)
     -- =========================
-    local function createSlider(name, min, max)
-        AutoGreen:CreateSlider({
-            Name = name,
-            Min = min,
-            Max = max,
-            Default = AutoGreenSettings.Base[name],
-            Decimal = 1000,
-            Function = function(v)
-                AutoGreenSettings.Base[name] = v
-            end
-        })
-    end
+    AutoGreen:CreateSlider({
+        Name = "Vertical Meter",
+        Flag = "AutoGreen_Vertical",
+        Min = -1.5,
+        Max = -0.5,
+        Default = AutoGreenSettings.VerticalMeter,
+        Function = function(v)
+            AutoGreenSettings.VerticalMeter = v
+        end
+    })
 
-    createSlider("VerticalMeter", -1.5, -0.5)
-    createSlider("BatMeter", -1.0, -0.2)
-    createSlider("RocketMeter", -1.0, -0.2)
-    createSlider("RobloxMeter", 0.2, 1.0)
-    createSlider("HoopMeter", 0.2, 1.0)
-    createSlider("NoMeter", -1.0, -0.2)
+    AutoGreen:CreateSlider({
+        Name = "Bat Meter",
+        Flag = "AutoGreen_Bat",
+        Min = -1.0,
+        Max = -0.2,
+        Default = AutoGreenSettings.BatMeter,
+        Function = function(v)
+            AutoGreenSettings.BatMeter = v
+        end
+    })
+
+    AutoGreen:CreateSlider({
+        Name = "Rocket Meter",
+        Flag = "AutoGreen_Rocket",
+        Min = -1.0,
+        Max = -0.2,
+        Default = AutoGreenSettings.RocketMeter,
+        Function = function(v)
+            AutoGreenSettings.RocketMeter = v
+        end
+    })
+
+    AutoGreen:CreateSlider({
+        Name = "Roblox Meter",
+        Flag = "AutoGreen_Roblox",
+        Min = 0.2,
+        Max = 1.0,
+        Default = AutoGreenSettings.RobloxMeter,
+        Function = function(v)
+            AutoGreenSettings.RobloxMeter = v
+        end
+    })
+
+    AutoGreen:CreateSlider({
+        Name = "Hoop Meter",
+        Flag = "AutoGreen_Hoop",
+        Min = 0.2,
+        Max = 1.0,
+        Default = AutoGreenSettings.HoopMeter,
+        Function = function(v)
+            AutoGreenSettings.HoopMeter = v
+        end
+    })
+
+    AutoGreen:CreateSlider({
+        Name = "No Meter",
+        Flag = "AutoGreen_NoMeter",
+        Min = -1.0,
+        Max = -0.2,
+        Default = AutoGreenSettings.NoMeter,
+        Function = function(v)
+            AutoGreenSettings.NoMeter = v
+        end
+    })
 
     -- =========================
     -- PING OFFSET
@@ -986,9 +1030,18 @@ run(function()
         local ping = math.clamp(getPing(), 0, 300)
         local pingOffset = AutoGreenSettings.PingBased and getPingOffset(ping) or 0
 
+        local meters = {
+            VerticalMeter = AutoGreenSettings.VerticalMeter,
+            BatMeter      = AutoGreenSettings.BatMeter,
+            RocketMeter   = AutoGreenSettings.RocketMeter,
+            RobloxMeter   = AutoGreenSettings.RobloxMeter,
+            HoopMeter     = AutoGreenSettings.HoopMeter,
+            NoMeter       = AutoGreenSettings.NoMeter
+        }
+
         local activeName, activeGrad, fireAt
 
-        for name, base in pairs(AutoGreenSettings.Base) do
+        for name, base in pairs(meters) do
             local meter = hrp:FindFirstChild(name)
             if meter then
                 local grad = getGradient(meter)
@@ -1027,6 +1080,7 @@ run(function()
         lastY[activeName] = y
     end)
 end)
+
 
   --[[
 run(function()
