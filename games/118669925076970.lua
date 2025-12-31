@@ -890,8 +890,9 @@ run(function()
     WalkSpeed:CreateSlider({
         Name = "Speed",
         Flag = "WalkSpeed_Value",
-        Min = 5,
+        Min = 14,
         Max = 30,
+		Decimal = 100,
         Default = WalkSpeedSettings.Value,
         Function = function(v)
             WalkSpeedSettings.Value = v
@@ -936,6 +937,7 @@ run(function()
         Flag = "AutoGreen_Bat",
         Min = 0.2,
         Max = 1.0,
+		    Decimal = 100,
         Default = AutoGreenSettings.BatMeter,
         Function = function(v)
             AutoGreenSettings.BatMeter = v
@@ -946,6 +948,7 @@ run(function()
         Flag = "AutoGreen_Rocket",
         Min = 0.2,
         Max = 1.0,
+			    Decimal = 100,
         Default = AutoGreenSettings.RocketMeter,
         Function = function(v)
             AutoGreenSettings.RocketMeter = v
@@ -956,6 +959,7 @@ run(function()
         Flag = "AutoGreen_Roblox",
         Min = 0.2,
         Max = 1.0,
+											    Decimal = 100,
         Default = AutoGreenSettings.RobloxMeter,
         Function = function(v)
             AutoGreenSettings.RobloxMeter = v
@@ -966,6 +970,7 @@ run(function()
         Flag = "AutoGreen_Hoop",
         Min = 0.2,
         Max = 1.0,
+												    Decimal = 100,
         Default = AutoGreenSettings.HoopMeter,
         Function = function(v)
             AutoGreenSettings.HoopMeter = v
@@ -976,6 +981,7 @@ run(function()
         Flag = "AutoGreen_NoMeter",
         Min = 0.2,
         Max = 1.0,
+													    Decimal = 100,
         Default = AutoGreenSettings.NoMeter,
         Function = function(v)
             AutoGreenSettings.NoMeter = v
